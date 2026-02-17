@@ -11,7 +11,7 @@ AI agents waste context window exploring codebases — reading directory trees, 
 Requires Node.js 20+.
 
 ```bash
-npm install -g grimoire-gen
+npm install -g @llm-grimoire/cli
 ```
 
 ## Three Flows
@@ -39,6 +39,12 @@ Works with GitHub repos too:
 grimoire analyze effect-atom --github tim-smart/effect-atom | claude
 ```
 
+For monorepo sub-packages, combine `--github` with `--path`:
+
+```bash
+grimoire analyze effect-sql --github effect-ts/effect --path packages/sql | claude
+```
+
 The prompt includes the codebase structure, key source files, and instructions for writing each topic. The agent writes directly to `~/.grimoire/projects/<name>/topics/`. Status messages go to stderr so piping works cleanly.
 
 Best for: deep, high-quality documentation — the agent can read additional files and make judgement calls as it writes.
@@ -60,6 +66,7 @@ Then run:
 ```bash
 grimoire analyze my-lib --path ./src --mode api
 grimoire analyze effect-atom --github tim-smart/effect-atom --mode api
+grimoire analyze effect-sql --github effect-ts/effect --path packages/sql --mode api
 ```
 
 Best for: quick results without manual steps.

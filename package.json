@@ -1,12 +1,12 @@
 {
-  "name": "grimoire-gen",
+  "name": "@llm-grimoire/cli",
   "version": "0.1.0",
   "description": "Instant codebase documentation for AI agents and humans",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mpm/grimoire"
+    "url": "https://github.com/llm-grimoire/cli"
   },
   "keywords": [
     "cli",
