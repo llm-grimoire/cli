@@ -2,6 +2,8 @@
 
 AI-assisted codebase navigation CLI generator. Analyzes any codebase (via AI or agent prompts), generates topic documentation, and scaffolds a standalone `@effect/cli` project that agents can use to navigate that codebase.
 
+> **Note:** The directory may still be named `cli-gen/` on disk — the project has been renamed to `grimoire` in all source code, package.json, and CLI commands.
+
 ## Project Status
 
 **Phases 1-5 implemented and verified.** All commands work end-to-end.

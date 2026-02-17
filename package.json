@@ -1,11 +1,32 @@
 {
-  "name": "grimoire",
+  "name": "grimoire-gen",
   "version": "0.1.0",
-  "description": "AI-assisted codebase navigation CLI generator",
+  "description": "Generate navigable documentation CLIs for any codebase",
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mpm/grimoire"
+  },
+  "keywords": [
+    "cli",
+    "documentation",
+    "codebase",
+    "ai",
+    "effect",
+    "scaffolding",
+    "navigation"
+  ],
   "bin": {
     "grimoire": "./bin.js"
   },
+  "files": [
+    "bin.js",
+    "src/**/*.ts",
+    "scripts/**/*.ts",
+    "tsconfig.json",
+    "README.md"
+  ],
   "scripts": {
     "dev": "bun run src/cli.ts",
     "build": "bun build src/cli.ts --outdir dist --target bun",
