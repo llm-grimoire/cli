@@ -39,8 +39,8 @@ export const addCommand = Command.make("add", {
 
       const name = args.name
 
-      // Determine registry path — owner/repo maps directly
-      const registryPath = name.includes("/") ? name : name
+      // Determine registry path — prefixed under packages/
+      const registryPath = `packages/${name}`
 
       yield* Console.error("")
       yield* Console.error(render.info(`Fetching grimoire for '${name}' from registry...`))

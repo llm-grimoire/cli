@@ -46,11 +46,11 @@ export const pushCommand = Command.make("push", {
         return
       }
 
-      // Determine registry path
+      // Determine registry path — under packages/
       const github = config.github
       const registryPath = config.path
-        ? `${github}/${config.path}`
-        : github
+        ? `packages/${github}/${config.path}`
+        : `packages/${github}`
 
       const projectDir = home.projectDir(projectName)
 
