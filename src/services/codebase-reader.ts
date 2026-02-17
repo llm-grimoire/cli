@@ -46,15 +46,16 @@ export class CodebaseReader extends Effect.Service<CodebaseReader>()(
       const findKeyFiles = (rootDir: string) =>
         Effect.gen(function* () {
           const matcher = yield* loadMatcher(rootDir)
-          const entries = yield* readTree(rootDir, matcher, 2)
+          const entries = yield* readTree(rootDir, matcher, 3)
           const keyPatterns = [
             /^package\.json$/,
-            /^tsconfig\.json$/,
             /^README\.md$/i,
-            /^src\/index\.(ts|js)$/,
-            /^src\/main\.(ts|js)$/,
-            /^src\/app\.(ts|js)$/,
-            /^src\/lib\/.*\.(ts|js)$/,
+            /^src\/index\.(ts|js|tsx|jsx)$/,
+            /^src\/main\.(ts|js|tsx|jsx)$/,
+            /^src\/app\.(ts|js|tsx|jsx)$/,
+            /^src\/[^/]+\.(ts|js|tsx|jsx)$/,
+            /^src\/lib\/[^/]+\.(ts|js|tsx|jsx)$/,
+            /^lib\/[^/]+\.(ts|js|tsx|jsx)$/,
           ]
           return entries
             .filter((e) => !e.isDirectory)

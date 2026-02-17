@@ -63,7 +63,7 @@ export const analyzeCommand = Command.make("analyze", {
         const promptPath = `${projectDir}/analysis-prompt.md`
 
         yield* Console.log(render.info("Reading codebase..."))
-        yield* generator.generate(codebasePath, promptPath, projectName)
+        yield* generator.generate(codebasePath, promptPath, projectName, topicsDir)
 
         yield* Console.log("")
         yield* Console.log(render.success(`Agent prompt written to ~/.grimoire/projects/${projectName}/analysis-prompt.md`))
