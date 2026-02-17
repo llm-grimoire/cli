@@ -29,7 +29,7 @@ export class AgentPromptGenerator extends Effect.Service<AgentPromptGenerator>()
 
           const prompt = buildPrompt(projectName, topicsDir, fileTree, keyFileContents)
           yield* fs.writeFileString(outputPath, prompt)
-          return outputPath
+          return prompt
         }).pipe(
           Effect.mapError(
             (cause) =>

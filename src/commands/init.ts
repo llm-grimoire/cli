@@ -74,9 +74,9 @@ export const initCommand = Command.make("init", {
 
       yield* home.ensureHome()
 
-      yield* Console.log("")
-      yield* Console.log(render.banner(`Creating project '${projectName}'...`))
-      yield* Console.log("")
+      yield* Console.error("")
+      yield* Console.error(render.banner(`Creating project '${projectName}'...`))
+      yield* Console.error("")
 
       const config = new ProjectConfig({
         name: projectName,
@@ -90,14 +90,14 @@ export const initCommand = Command.make("init", {
       yield* fs.makeDirectory(topicsDir, { recursive: true })
       yield* configService.write(projectName, config)
 
-      yield* Console.log(render.success(`Project created at ~/.grimoire/projects/${projectName}/`))
+      yield* Console.error(render.success(`Project created at ~/.grimoire/projects/${projectName}/`))
 
       // If no target provided, we're done
       if (!targetRaw) {
-        yield* Console.log("")
-        yield* Console.log(render.dim("Next steps:"))
-        yield* Console.log(render.dim(`  grimoire analyze ${projectName} --target <path-or-url>`))
-        yield* Console.log("")
+        yield* Console.error("")
+        yield* Console.error(render.dim("Next steps:"))
+        yield* Console.error(render.dim(`  grimoire analyze ${projectName} --target <path-or-url>`))
+        yield* Console.error("")
         return
       }
 
@@ -106,8 +106,8 @@ export const initCommand = Command.make("init", {
       let clonedTempDir: string | undefined
 
       if (isUrl(targetRaw)) {
-        yield* Console.log("")
-        yield* Console.log(render.info(`Cloning ${targetRaw}...`))
+        yield* Console.error("")
+        yield* Console.error(render.info(`Cloning ${targetRaw}...`))
         clonedTempDir = yield* Effect.tryPromise({
           try: () => shallowClone(targetRaw),
           catch: (e) => new Error(`Failed to clone: ${e}`),
@@ -120,24 +120,20 @@ export const initCommand = Command.make("init", {
       }
 
       try {
-        yield* Console.log("")
-        yield* Console.log(render.banner(`Analyzing ${projectName}...`))
-        yield* Console.log("")
+        yield* Console.error("")
+        yield* Console.error(render.banner(`Analyzing ${projectName}...`))
+        yield* Console.error("")
 
         if (mode === "agent") {
           const generator = yield* AgentPromptGenerator
           const promptPath = `${projectDir}/analysis-prompt.md`
 
-          yield* Console.log(render.info("Reading codebase..."))
-          yield* generator.generate(codebasePath, promptPath, projectName, topicsDir)
+          yield* Console.error(render.info("Reading codebase..."))
+          const prompt = yield* generator.generate(codebasePath, promptPath, projectName, topicsDir)
 
-          yield* Console.log("")
-          yield* Console.log(render.success(`Analysis prompt written to ~/.grimoire/projects/${projectName}/analysis-prompt.md`))
-          yield* Console.log("")
-          yield* Console.log(render.dim("Next steps:"))
-          yield* Console.log(render.dim("  Feed analysis-prompt.md to Claude Code to generate topics"))
-          yield* Console.log(render.dim(`  grimoire list ${projectName}`))
-          yield* Console.log("")
+          yield* Console.error("")
+          yield* Console.error(render.success(`Saved to ~/.grimoire/projects/${projectName}/analysis-prompt.md`))
+          yield* Console.log(prompt)
         } else {
           const topicWriter = yield* TopicWriter
 

@@ -18,17 +18,15 @@ npm install -g grimoire-gen
 
 ### Flow 1: Agent Mode (default)
 
-Grimoire reads your codebase and generates a detailed prompt. You hand the prompt to Claude Code (or any coding agent), and the agent writes the topic files.
+Grimoire reads your codebase and emits a detailed prompt to stdout. Pipe it straight to your agent:
 
 ```bash
-grimoire init my-lib --target ./path/to/my-lib
-# → writes prompt to ~/.grimoire/projects/my-lib/agent-prompt.md
-
-# Give the prompt to your agent, e.g.:
-claude "$(cat ~/.grimoire/projects/my-lib/agent-prompt.md)"
+grimoire init my-lib --target ./path/to/my-lib | claude
 ```
 
-The prompt includes the codebase structure, key source files, and instructions for writing each topic. The agent writes directly to `~/.grimoire/projects/my-lib/topics/`.
+The prompt includes the codebase structure, key source files, and instructions for writing each topic. The agent writes directly to `~/.grimoire/projects/my-lib/topics/`. Status messages go to stderr so piping works cleanly.
+
+The prompt is also saved to `~/.grimoire/projects/my-lib/analysis-prompt.md` for reuse.
 
 Best for: deep, high-quality documentation — the agent can read additional files and make judgement calls as it writes.
 

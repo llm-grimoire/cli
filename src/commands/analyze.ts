@@ -54,23 +54,20 @@ export const analyzeCommand = Command.make("analyze", {
         ? targetRaw
         : `${process.cwd()}/${targetRaw}`
 
-      yield* Console.log("")
-      yield* Console.log(render.banner(`Analyzing ${projectName}...`))
-      yield* Console.log("")
+      yield* Console.error("")
+      yield* Console.error(render.banner(`Analyzing ${projectName}...`))
+      yield* Console.error("")
 
       if (options.mode === "agent") {
         const generator = yield* AgentPromptGenerator
         const promptPath = `${projectDir}/analysis-prompt.md`
 
-        yield* Console.log(render.info("Reading codebase..."))
-        yield* generator.generate(codebasePath, promptPath, projectName, topicsDir)
+        yield* Console.error(render.info("Reading codebase..."))
+        const prompt = yield* generator.generate(codebasePath, promptPath, projectName, topicsDir)
 
-        yield* Console.log("")
-        yield* Console.log(render.success(`Agent prompt written to ~/.grimoire/projects/${projectName}/analysis-prompt.md`))
-        yield* Console.log("")
-        yield* Console.log(render.dim("Use this prompt with Claude Code to generate topics."))
-        yield* Console.log(render.dim(`Then run 'grimoire list ${projectName}' to see results.`))
-        yield* Console.log("")
+        yield* Console.error("")
+        yield* Console.error(render.success(`Saved to ~/.grimoire/projects/${projectName}/analysis-prompt.md`))
+        yield* Console.log(prompt)
       } else {
         const topicWriter = yield* TopicWriter
 
