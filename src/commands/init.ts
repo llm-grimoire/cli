@@ -1,6 +1,6 @@
 import { Args, Command, Options } from "@effect/cli"
-import { Console, Config, Effect, Layer, Option, Redacted } from "effect"
-import { FileSystem, FetchHttpClient } from "@effect/platform"
+import { Console, Effect, Option } from "effect"
+import { FileSystem } from "@effect/platform"
 import { spawn } from "node:child_process"
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
@@ -10,6 +10,7 @@ import { ProjectConfigService } from "../services/project-config.js"
 import { GrimoireHome } from "../services/grimoire-home.js"
 import { AgentPromptGenerator } from "../services/agent-prompt-generator.js"
 import { TopicWriter } from "../services/topic-writer.js"
+import { resolveProvider } from "../ai/provider.js"
 import * as render from "../lib/render.js"
 
 const isUrl = (s: string) =>
@@ -39,7 +40,7 @@ const targetOption = Options.text("target").pipe(
 )
 
 const modeOption = Options.choice("mode", ["agent", "api"]).pipe(
-  Options.withDescription("Analysis mode: 'agent' generates a prompt file, 'api' calls OpenRouter directly"),
+  Options.withDescription("Analysis mode: 'agent' generates a prompt file, 'api' calls an AI provider directly"),
   Options.optional,
 )
 
@@ -140,35 +141,25 @@ export const initCommand = Command.make("init", {
         } else {
           const topicWriter = yield* TopicWriter
 
-          const apiKey = process.env["OPENROUTER_API_KEY"]
-          if (!apiKey) {
-            yield* Console.log(render.error("OPENROUTER_API_KEY environment variable is required for --mode api"))
-            yield* Console.log(render.dim("Tip: use --mode agent (default) to generate a prompt file instead."))
-            return
-          }
+          const provider = yield* resolveProvider().pipe(
+            Effect.catchAll(() =>
+              Effect.gen(function* () {
+                yield* Console.log(render.error("No API key found. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or OPENROUTER_API_KEY."))
+                yield* Console.log(render.dim("Tip: use --mode agent (default) to generate a prompt file instead."))
+                return yield* Effect.fail("no-key" as const)
+              }),
+            ),
+          )
 
           yield* Console.log(render.info("Running AI analysis pipeline..."))
+          yield* Console.log(render.dim(`  Using ${provider.name}`))
 
-          const { OpenRouterLanguageModel, OpenRouterClient } = yield* Effect.promise(
-            () => import("@effect/ai-openrouter"),
-          )
           const { runFullPipeline } = yield* Effect.promise(
             () => import("../ai/pipeline.js"),
           )
 
-          const AiLayer = OpenRouterLanguageModel.layer({
-            model: "anthropic/claude-opus-4.5",
-          }).pipe(
-            Layer.provide(
-              OpenRouterClient.layerConfig({
-                apiKey: Config.succeed(Redacted.make(apiKey)),
-              }),
-            ),
-            Layer.provide(FetchHttpClient.layer),
-          )
-
           const { topics } = yield* runFullPipeline(codebasePath).pipe(
-            Effect.provide(AiLayer),
+            Effect.provide(provider.layer),
           )
 
           for (const topic of topics) {

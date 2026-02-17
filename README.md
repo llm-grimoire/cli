@@ -1,13 +1,6 @@
 # grimoire
 
-Instant codebase documentation for AI agents and humans. One command to analyze, one command to read.
-
-```
-$ grimoire init effect-atom --target https://github.com/tim-smart/effect-atom --mode api
-$ grimoire show effect-atom overview
-```
-
-That's it. No scaffolding, no `npm install`, no separate project to manage. Everything lives in `~/.grimoire`.
+Instant codebase documentation for AI agents and humans. Two ways to generate, one way to read.
 
 ## Why
 
@@ -21,99 +14,78 @@ Requires Node.js 20+.
 npm install -g grimoire-gen
 ```
 
-## Quick Start
+## Two Flows
+
+### Flow 1: Agent Mode (default)
+
+Grimoire reads your codebase and generates a detailed prompt. You hand the prompt to Claude Code (or any coding agent), and the agent writes the topic files.
 
 ```bash
-# Analyze a GitHub repo with AI
-grimoire init my-lib --target https://github.com/user/my-lib --mode api
+grimoire init my-lib --target ./path/to/my-lib
+# → writes prompt to ~/.grimoire/projects/my-lib/agent-prompt.md
 
-# Analyze a local codebase
-grimoire init my-lib --target ./path/to/my-lib --mode api
-
-# Agent mode (default) — generates a prompt file for Claude Code
-grimoire init my-lib --target https://github.com/user/my-lib
-
-# Browse the results
-grimoire list my-lib
-grimoire show my-lib overview
+# Give the prompt to your agent, e.g.:
+claude "$(cat ~/.grimoire/projects/my-lib/agent-prompt.md)"
 ```
 
-API mode (`--mode api`) requires `OPENROUTER_API_KEY` set in the environment.
+The prompt includes the codebase structure, key source files, and instructions for writing each topic. The agent writes directly to `~/.grimoire/projects/my-lib/topics/`.
 
-## Commands
+Best for: deep, high-quality documentation — the agent can read additional files and make judgement calls as it writes.
 
-| Command | Purpose |
-|---------|---------|
-| `grimoire init <name> [--target url\|path] [--mode agent\|api]` | Create project + optional analysis |
-| `grimoire analyze <project> [--target path] [--mode agent\|api]` | Run/rerun analysis for a project |
-| `grimoire list` | List all projects |
-| `grimoire list <project>` | List topics for a project |
-| `grimoire show <project> <topic>` | Show a topic |
-| `grimoire remove <project>` | Remove a project |
+### Flow 2: API Mode
 
-### `grimoire init <name>`
+Grimoire calls an AI provider directly. No agent needed — topics are generated automatically.
 
-Create a new project, optionally analyzing a codebase in the same step.
+Set any one of these keys (checked in this order):
+
+```bash
+export ANTHROPIC_API_KEY=sk-...    # uses claude-sonnet-4-5
+export OPENAI_API_KEY=sk-...       # uses gpt-4o
+export OPENROUTER_API_KEY=sk-...   # uses anthropic/claude-sonnet-4-5
+```
+
+Then run:
+
+```bash
+grimoire init my-lib --target ./path/to/my-lib --mode api
+```
+
+Works with URLs too:
 
 ```bash
 grimoire init effect-atom --target https://github.com/tim-smart/effect-atom --mode api
-grimoire init my-project                          # create empty, analyze later
-grimoire init my-project --target ./local/path     # agent mode (default)
 ```
 
-### `grimoire analyze <project>`
+Best for: quick results without manual steps.
 
-Run or rerun analysis on an existing project. Target defaults to the `source` saved in `grimoire.json`.
+## Reading the Docs
 
 ```bash
-grimoire analyze my-project --target ./my-codebase --mode api
-grimoire analyze my-project                        # uses saved source
+grimoire list                           # all projects
+grimoire list my-lib                    # topics in a project
+grimoire show my-lib overview           # read a topic
+grimoire context my-lib                 # markdown snippet for agent instructions
 ```
 
-### `grimoire list`
+`grimoire context` outputs a block you can paste into CLAUDE.md or a system prompt so your agent knows what topics are available and how to query them.
 
-```bash
-grimoire list                  # all projects
-grimoire list my-project       # topics in a project
-```
+## All Commands
 
-### `grimoire show <project> <topic>`
-
-```bash
-grimoire show effect-atom overview
-grimoire show effect-atom architecture
-```
-
-### `grimoire remove <project>`
-
-```bash
-grimoire remove my-project
-```
+| Command | Purpose |
+|---------|---------|
+| `grimoire init <name> [--target url\|path] [--mode agent\|api]` | Create project + analyze |
+| `grimoire analyze <project> [--target path] [--mode agent\|api]` | Rerun analysis |
+| `grimoire list [project]` | List projects or topics |
+| `grimoire show <project> <topic>` | Read a topic |
+| `grimoire context <project>` | Output agent instructions |
+| `grimoire remove <project>` | Delete a project |
 
 ## How It Works
 
-1. `grimoire init` creates a project directory in `~/.grimoire/projects/<name>/`
-2. Analysis reads the codebase (respecting `.gitignore`), then either generates a prompt for an AI agent or calls OpenRouter to produce topics directly
-3. Topics are markdown files with YAML frontmatter, read directly at runtime — no build step
-4. `list` and `show` parse frontmatter and render to the terminal
-
-## Topic Format
-
-```markdown
----
-title: Error Handling
-slug: error-handling
-description: Error types, recovery patterns, and boundaries
-order: 3
-category: patterns
-tags: [errors, recovery, boundaries]
-relatedFiles: [src/errors.ts, src/middleware/error-handler.ts]
----
-
-# Error Handling
-
-Content here...
-```
+1. `init` creates `~/.grimoire/projects/<name>/` with a `grimoire.json` config
+2. Analysis reads the codebase (respecting `.gitignore`) and either generates an agent prompt or calls an AI provider
+3. Topics are markdown files with YAML frontmatter — no build step, read directly at runtime
+4. `list`, `show`, and `context` parse frontmatter and render to the terminal
 
 ## Storage
 
@@ -122,7 +94,7 @@ Everything lives in `~/.grimoire` (override with `GRIMOIRE_HOME`):
 ```
 ~/.grimoire/
   projects/
-    effect-atom/
+    my-lib/
       grimoire.json
       topics/
         00-overview.md
@@ -133,7 +105,7 @@ Everything lives in `~/.grimoire` (override with `GRIMOIRE_HOME`):
 ## Built With
 
 - [Effect](https://effect.website) + [@effect/cli](https://github.com/Effect-TS/effect/tree/main/packages/cli)
-- [@effect/ai-openrouter](https://github.com/Effect-TS/effect/tree/main/packages/ai-openrouter) (optional, for `--mode api`)
+- [@effect/ai](https://github.com/Effect-TS/effect/tree/main/packages/ai) providers: Anthropic, OpenAI, OpenRouter (API mode)
 
 ## License
 

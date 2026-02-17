@@ -48,7 +48,7 @@ No manifest — `list` and `show` read topic `.md` files directly, parsing front
 - **Effect.Service class pattern** with `accessors: true` for all services
 - **Layer composition** in `cli.ts`: BaseServices → DependentServices → ServiceLayer
 - **`grimoire.json`** per project for config (name, description, source)
-- **Lazy AI loading** — `@effect/ai-openrouter` is only imported when `--mode api` is used, so no API key needed for other commands
+- **Lazy AI loading** — `@effect/ai-anthropic`, `@effect/ai-openai`, and `@effect/ai-openrouter` are only imported when `--mode api` is used (whichever key is detected), so no API key needed for other commands
 
 ### Service Dependencies
 ```
@@ -71,10 +71,7 @@ Three-phase pipeline using `LanguageModel.generateObject` with Effect Schema val
 2. **Topic Planning** → `TopicProposalSet` (8-15 proposals)
 3. **Topic Generation** → `GeneratedTopic` for each proposal
 
-OpenRouter layer is composed inline in the init/analyze commands:
-```
-OpenRouterLanguageModel.layer() → OpenRouterClient.layerConfig() → FetchHttpClient.layer
-```
+Provider layer is resolved in `src/ai/provider.ts` — auto-detects `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `OPENROUTER_API_KEY` (first found wins) and returns the corresponding `LanguageModel` layer. Used by both `init.ts` and `analyze.ts`.
 
 ## Development
 

@@ -1,10 +1,10 @@
 import { Args, Command, Options } from "@effect/cli"
-import { Console, Config, Effect, Layer, Option, Redacted } from "effect"
-import { FetchHttpClient } from "@effect/platform"
+import { Console, Effect, Option } from "effect"
 import { AgentPromptGenerator } from "../services/agent-prompt-generator.js"
 import { ProjectConfigService } from "../services/project-config.js"
 import { GrimoireHome } from "../services/grimoire-home.js"
 import { TopicWriter } from "../services/topic-writer.js"
+import { resolveProvider } from "../ai/provider.js"
 import * as render from "../lib/render.js"
 
 const projectArg = Args.text({ name: "project" }).pipe(
@@ -18,7 +18,7 @@ const targetOption = Options.text("target").pipe(
 )
 
 const modeOption = Options.choice("mode", ["agent", "api"]).pipe(
-  Options.withDescription("Analysis mode: 'agent' generates a prompt file, 'api' uses OpenRouter directly"),
+  Options.withDescription("Analysis mode: 'agent' generates a prompt file, 'api' calls an AI provider directly"),
   Options.withDefault("agent"),
 )
 
@@ -74,38 +74,28 @@ export const analyzeCommand = Command.make("analyze", {
       } else {
         const topicWriter = yield* TopicWriter
 
-        const apiKey = process.env["OPENROUTER_API_KEY"]
-        if (!apiKey) {
-          yield* Console.log(render.error("OPENROUTER_API_KEY environment variable is required for --mode api"))
-          return
-        }
+        const provider = yield* resolveProvider().pipe(
+          Effect.catchAll(() =>
+            Effect.gen(function* () {
+              yield* Console.log(render.error("No API key found. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or OPENROUTER_API_KEY."))
+              return yield* Effect.fail("no-key" as const)
+            }),
+          ),
+        )
 
         yield* Console.log(render.info("Running AI analysis pipeline..."))
+        yield* Console.log(render.dim(`  Using ${provider.name}`))
         yield* Console.log(render.dim("  Phase 1: Discovery"))
         yield* Console.log(render.dim("  Phase 2: Topic Planning"))
         yield* Console.log(render.dim("  Phase 3: Topic Generation"))
         yield* Console.log("")
 
-        const { OpenRouterLanguageModel, OpenRouterClient } = yield* Effect.promise(
-          () => import("@effect/ai-openrouter"),
-        )
         const pipeline = yield* Effect.promise(
           () => import("../ai/pipeline.js"),
         )
 
-        const AiLayer = OpenRouterLanguageModel.layer({
-          model: "anthropic/claude-opus-4.5",
-        }).pipe(
-          Layer.provide(
-            OpenRouterClient.layerConfig({
-              apiKey: Config.succeed(Redacted.make(apiKey)),
-            }),
-          ),
-          Layer.provide(FetchHttpClient.layer),
-        )
-
         const { topics } = yield* pipeline.runFullPipeline(codebasePath).pipe(
-          Effect.provide(AiLayer),
+          Effect.provide(provider.layer),
         )
 
         for (const topic of topics) {
