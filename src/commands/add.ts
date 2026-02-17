@@ -5,7 +5,7 @@ import { GrimoireHome } from "../services/grimoire-home.js"
 import { ProjectConfig } from "../schemas/project-config.js"
 import * as render from "../lib/render.js"
 
-const REGISTRY_BASE = "https://grimoire.dev"
+const REGISTRY_BASE = "https://llm-grimoire.dev"
 
 const nameArg = Args.text({ name: "name" }).pipe(
   Args.withDescription("Registry name — 'owner/repo' for exact match, or a search term"),
