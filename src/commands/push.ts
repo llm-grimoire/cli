@@ -5,7 +5,7 @@ import { ProjectConfigService } from "../services/project-config.js"
 import { TopicReader } from "../services/topic-reader.js"
 import * as render from "../lib/render.js"
 
-const REGISTRY_REPO = "grimoire-registry/registry"
+const REGISTRY_REPO = "llm-grimoire/registry"
 
 const nameArg = Args.text({ name: "name" }).pipe(
   Args.withDescription("Project name to push to the registry"),

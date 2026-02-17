@@ -5,7 +5,7 @@ import { GrimoireHome } from "../services/grimoire-home.js"
 import { ProjectConfig } from "../schemas/project-config.js"
 import * as render from "../lib/render.js"
 
-const REGISTRY_REPO = "grimoire-registry/registry"
+const REGISTRY_REPO = "llm-grimoire/registry"
 const REGISTRY_BRANCH = "main"
 
 const nameArg = Args.text({ name: "name" }).pipe(
