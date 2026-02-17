@@ -1,27 +1,44 @@
 # grimoire
 
-AI-assisted codebase navigation CLI generator. Analyzes any codebase (via AI or agent prompts), generates topic documentation, and scaffolds a standalone `@effect/cli` project that agents can use to navigate that codebase.
+AI-assisted codebase navigation. Analyzes any codebase (via AI or agent prompts), generates topic documentation, and serves it directly from `~/.grimoire`. Zero friction: `grimoire init` + `grimoire show`.
 
 > **Note:** The directory may still be named `cli-gen/` on disk — the project has been renamed to `grimoire` in all source code, package.json, and CLI commands.
 
 ## Project Status
 
-**Phases 1-5 implemented and verified.** All commands work end-to-end.
+**Core redesign complete.** All commands work end-to-end with centralized `~/.grimoire` storage.
 
-### What's Done
-- `grimoire init [name]` — scaffolds a working solutions CLI project
-- `grimoire add <topic>` — adds topic templates with frontmatter
-- `grimoire build` — generates manifest from topics
-- `grimoire dev <args>` — regenerates manifest and runs scaffolded CLI
-- `grimoire analyze --mode agent <path>` — generates prompt file for Claude Code
-- `grimoire analyze --mode api <path>` — runs AI analysis pipeline via OpenRouter (needs `OPENROUTER_API_KEY`)
+### Commands
+- `grimoire init <name> [--target url|path] [--mode agent|api]` — create project + optional analysis
+- `grimoire analyze <project> [--target path] [--mode agent|api]` — run/rerun analysis for a project
+- `grimoire list` — list all projects
+- `grimoire list <project>` — list topics for a project
+- `grimoire show <project> <topic>` — show a topic
+- `grimoire remove <project>` — remove a project
 
-### What's Remaining (Phase 6: Polish)
+### What's Remaining (Polish)
 - `UpdateNotifier` service exists but isn't wired into CLI output
 - Error handling could be more user-friendly (raw Effect errors leak in some cases)
-- No `--dry-run` support yet
 - No tests
 - `toolkit.ts` is a placeholder — the pipeline uses `generateObject` directly instead of tool-based interactions
+
+## Directory Structure
+
+```
+~/.grimoire/
+  projects/
+    effect-atom/
+      grimoire.json          # Project config (name, description, source)
+      topics/
+        00-overview.md
+        01-architecture.md
+        ...
+    another-project/
+      grimoire.json
+      topics/
+```
+
+No manifest — `list` and `show` read topic `.md` files directly, parsing frontmatter with gray-matter at runtime. Respects `GRIMOIRE_HOME` env var to override `~/.grimoire`.
 
 ## Architecture
 
@@ -30,21 +47,22 @@ AI-assisted codebase navigation CLI generator. Analyzes any codebase (via AI or 
 ### Key Patterns
 - **Effect.Service class pattern** with `accessors: true` for all services
 - **Layer composition** in `cli.ts`: BaseServices → DependentServices → ServiceLayer
-- **Templates as TypeScript functions** (not .hbs/.ejs) — type-checked, ship inside the package
-- **`grimoire.json`** separate from `package.json` for project config
+- **`grimoire.json`** per project for config (name, description, source)
 - **Lazy AI loading** — `@effect/ai-openrouter` is only imported when `--mode api` is used, so no API key needed for other commands
 
 ### Service Dependencies
 ```
 CLI Commands
-  ├── init      → ScaffoldService, ProjectConfigService, FileSystem
-  ├── analyze   → AgentPromptGenerator | (TopicWriter + OpenRouter LanguageModel)
-  ├── build     → ProjectConfigService, ManifestGenerator
-  ├── add       → ProjectConfigService, TopicWriter
-  └── dev       → ProjectConfigService, ManifestGenerator
+  ├── init      → GrimoireHome, ProjectConfigService, AgentPromptGenerator | TopicWriter
+  ├── analyze   → GrimoireHome, ProjectConfigService, AgentPromptGenerator | TopicWriter
+  ├── list      → GrimoireHome, ProjectConfigService, TopicReader
+  ├── show      → GrimoireHome, TopicReader
+  └── remove    → GrimoireHome, FileSystem
 
+GrimoireHome → FileSystem (resolves ~/.grimoire path)
+ProjectConfigService → GrimoireHome, FileSystem
+TopicReader → GrimoireHome, FileSystem (gray-matter parsing)
 AgentPromptGenerator → CodebaseReader → FileSystem
-CodebaseReader → FileSystem (gitignore parsing, file tree traversal)
 ```
 
 ### AI Pipeline (Direct Mode)
@@ -53,7 +71,7 @@ Three-phase pipeline using `LanguageModel.generateObject` with Effect Schema val
 2. **Topic Planning** → `TopicProposalSet` (8-15 proposals)
 3. **Topic Generation** → `GeneratedTopic` for each proposal
 
-OpenRouter layer is composed inline in the analyze command:
+OpenRouter layer is composed inline in the init/analyze commands:
 ```
 OpenRouterLanguageModel.layer() → OpenRouterClient.layerConfig() → FetchHttpClient.layer
 ```
@@ -66,13 +84,12 @@ npx tsx src/cli.ts --help        # run CLI directly
 npm run typecheck                 # tsc --noEmit
 ```
 
-### Testing init end-to-end
+### Testing end-to-end
 ```bash
-cd /tmp
-npx tsx /path/to/grimoire/src/cli.ts init test-project
-cd test-project-solutions
-npm install
-npx tsx src/cli.ts list           # should show overview topic
+npx tsx src/cli.ts init my-project
+npx tsx src/cli.ts list                    # shows my-project
+npx tsx src/cli.ts list my-project         # shows topics (empty until analyzed)
+npx tsx src/cli.ts remove my-project       # clean up
 ```
 
 ## File Layout
@@ -80,14 +97,11 @@ npx tsx src/cli.ts list           # should show overview topic
 ```
 src/
   cli.ts                          # Root entry point, layer composition
-  commands/                       # CLI command definitions (init, analyze, build, add, dev)
-  services/                       # Effect services (ProjectConfig, Scaffold, TopicWriter, etc.)
+  commands/                       # CLI command definitions (init, analyze, list, show, remove)
+  services/                       # Effect services (GrimoireHome, ProjectConfig, TopicReader, etc.)
   schemas/                        # Effect Schema definitions (project-config, topic, analysis)
   ai/                             # AI pipeline (prompts, tools, pipeline orchestration)
-  templates/                      # TypeScript functions generating scaffolded project files
   lib/                            # Utilities (render, gitignore, file-tree)
-scripts/
-  build-binaries.ts               # Placeholder for cross-platform compilation
 ```
 
 ## Notes
@@ -95,5 +109,3 @@ scripts/
 - The `@effect/ai` API uses `Tool`, `Toolkit`, `LanguageModel` (not `AiTool`/`AiToolkit`/`AiLanguageModel`)
 - `LanguageModel.generateObject()` returns `GenerateObjectResponse` — access `.value` for the parsed object
 - `Options.optional` in `@effect/cli` returns `Option<T>` — use `Option.getOrElse` / `Option.getOrUndefined`
-- Scaffolded projects need `@effect/printer`, `@effect/printer-ansi`, `@effect/typeclass` as deps (peer deps of `@effect/cli`)
-- The `AiAnalyzer` service from the plan was collapsed into the analyze command to avoid leaking `LanguageModel` requirement at startup

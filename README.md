@@ -1,29 +1,13 @@
 # grimoire
 
-Generate navigable documentation CLIs for any codebase. Grimoire analyzes a project, produces curated topic guides, and scaffolds a standalone CLI that AI agents (or humans) can use to look things up fast.
+Instant codebase documentation for AI agents and humans. One command to analyze, one command to read.
 
 ```
 $ grimoire init effect-atom --target https://github.com/tim-smart/effect-atom --mode api
-$ cd effect-atom-solutions
-$ npm install
-$ npx tsx src/cli.ts list
+$ grimoire show effect-atom overview
 ```
 
-The output is a self-contained CLI:
-
-```
-$ effect-atom-solutions list
-
-effect-atom Solutions
-Available topics:
-
-  overview            What effect-atom is and how the packages fit together
-  architecture        Service layer design and dependency injection
-  error-handling      Error types, recovery patterns, and boundaries
-  ...
-
-$ effect-atom-solutions show architecture
-```
+That's it. No scaffolding, no `npm install`, no separate project to manage. Everything lives in `~/.grimoire`.
 
 ## Why
 
@@ -31,7 +15,7 @@ AI agents waste context window exploring codebases — reading directory trees, 
 
 ## Install
 
-Requires Node.js 20+ and [tsx](https://tsx.is).
+Requires Node.js 20+.
 
 ```bash
 npm install -g grimoire-gen
@@ -40,87 +24,80 @@ npm install -g grimoire-gen
 ## Quick Start
 
 ```bash
-# From a GitHub URL — scaffold + analyze in one step
+# Analyze a GitHub repo with AI
 grimoire init my-lib --target https://github.com/user/my-lib --mode api
 
-# From a local path
+# Analyze a local codebase
 grimoire init my-lib --target ./path/to/my-lib --mode api
 
-# Agent mode (default) — generates a prompt file for Claude Code instead of calling the API
+# Agent mode (default) — generates a prompt file for Claude Code
 grimoire init my-lib --target https://github.com/user/my-lib
-```
 
-The `--target` flag accepts a local path or a GitHub URL (cloned automatically). The name is inferred from the URL if omitted.
+# Browse the results
+grimoire list my-lib
+grimoire show my-lib overview
+```
 
 API mode (`--mode api`) requires `OPENROUTER_API_KEY` set in the environment.
 
 ## Commands
 
-### `grimoire init [name]`
+| Command | Purpose |
+|---------|---------|
+| `grimoire init <name> [--target url\|path] [--mode agent\|api]` | Create project + optional analysis |
+| `grimoire analyze <project> [--target path] [--mode agent\|api]` | Run/rerun analysis for a project |
+| `grimoire list` | List all projects |
+| `grimoire list <project>` | List topics for a project |
+| `grimoire show <project> <topic>` | Show a topic |
+| `grimoire remove <project>` | Remove a project |
 
-Scaffold a new solutions CLI project, optionally analyzing a codebase.
+### `grimoire init <name>`
 
-```bash
-# Scaffold + analyze a GitHub repo
-grimoire init effect-atom --target https://github.com/tim-smart/effect-atom
-
-# Scaffold + analyze with API (generates topics directly)
-OPENROUTER_API_KEY=sk-... grimoire init effect-atom --target ./effect-atom --mode api
-
-# Scaffold only (no analysis)
-grimoire init my-project
-```
-
-Options:
-- `-t, --target` — Path or GitHub URL of the codebase to analyze
-- `--mode agent|api` — Analysis mode (default: agent)
-- `-d, --description` — Project description
-
-### `grimoire analyze [path]`
-
-Analyze a codebase and generate topic documentation (standalone, outside of init).
+Create a new project, optionally analyzing a codebase in the same step.
 
 ```bash
-grimoire analyze --mode agent ./my-codebase
-OPENROUTER_API_KEY=sk-... grimoire analyze --mode api ./my-codebase
+grimoire init effect-atom --target https://github.com/tim-smart/effect-atom --mode api
+grimoire init my-project                          # create empty, analyze later
+grimoire init my-project --target ./local/path     # agent mode (default)
 ```
 
-Options:
-- `--mode agent|api` — Analysis mode (default: agent)
-- `-o, --output` — Output path
-- `-n, --name` — Project name
+### `grimoire analyze <project>`
 
-### `grimoire add <topic>`
-
-Add a topic manually.
+Run or rerun analysis on an existing project. Target defaults to the `source` saved in `grimoire.json`.
 
 ```bash
-grimoire add error-handling
-grimoire add architecture --title "System Architecture" --category architecture
+grimoire analyze my-project --target ./my-codebase --mode api
+grimoire analyze my-project                        # uses saved source
 ```
 
-Creates a markdown file in `topics/` with YAML frontmatter. Edit it, then rebuild.
-
-### `grimoire build`
-
-Build the scaffolded CLI (generates `docs-manifest.ts` from topic files).
+### `grimoire list`
 
 ```bash
-grimoire build
+grimoire list                  # all projects
+grimoire list my-project       # topics in a project
 ```
 
-### `grimoire dev <args>`
-
-Run the scaffolded CLI in development mode (regenerates manifest first).
+### `grimoire show <project> <topic>`
 
 ```bash
-grimoire dev list
-grimoire dev show architecture
+grimoire show effect-atom overview
+grimoire show effect-atom architecture
 ```
+
+### `grimoire remove <project>`
+
+```bash
+grimoire remove my-project
+```
+
+## How It Works
+
+1. `grimoire init` creates a project directory in `~/.grimoire/projects/<name>/`
+2. Analysis reads the codebase (respecting `.gitignore`), then either generates a prompt for an AI agent or calls OpenRouter to produce topics directly
+3. Topics are markdown files with YAML frontmatter, read directly at runtime — no build step
+4. `list` and `show` parse frontmatter with gray-matter and render to the terminal
 
 ## Topic Format
-
-Topics are markdown files with YAML frontmatter in the `topics/` directory:
 
 ```markdown
 ---
@@ -135,44 +112,29 @@ relatedFiles: [src/errors.ts, src/middleware/error-handler.ts]
 
 # Error Handling
 
-## Overview
-How errors flow through the system...
-
-## Key Concepts
-...
-
-## Code Examples
-...
+Content here...
 ```
 
-## How It Works
+## Storage
 
-1. **`grimoire init --target`** clones the repo (if URL), scaffolds a project, and analyzes the codebase
-2. **Topics** are markdown files with frontmatter, compiled into a typed `docs-manifest.ts` registry
-3. **Analysis** reads the codebase (respecting `.gitignore`), then either generates a prompt for an AI agent or calls OpenRouter to produce topics directly
-4. **The output CLI** is a standalone `@effect/cli` project — `list` shows topics, `show <topic>` renders them
+Everything lives in `~/.grimoire` (override with `GRIMOIRE_HOME`):
 
-## Configuration
-
-`grimoire.json` in the scaffolded project root:
-
-```json
-{
-  "name": "my-project",
-  "cliName": "my-project-solutions",
-  "description": "A codebase navigation CLI",
-  "version": "0.1.0",
-  "topicsDir": "topics",
-  "outputDir": "dist"
-}
+```
+~/.grimoire/
+  projects/
+    effect-atom/
+      grimoire.json
+      topics/
+        00-overview.md
+        01-architecture.md
+        ...
 ```
 
 ## Built With
 
-- [Effect](https://effect.website) — typed functional programming for TypeScript
-- [@effect/cli](https://github.com/Effect-TS/effect/tree/main/packages/cli) — type-safe CLI framework
-- [@effect/ai-openrouter](https://github.com/Effect-TS/effect/tree/main/packages/ai-openrouter) — OpenRouter API client (optional, for `--mode api`)
-- [tsx](https://tsx.is) — TypeScript runtime for Node.js
+- [Effect](https://effect.website) + [@effect/cli](https://github.com/Effect-TS/effect/tree/main/packages/cli)
+- [@effect/ai-openrouter](https://github.com/Effect-TS/effect/tree/main/packages/ai-openrouter) (optional, for `--mode api`)
+- [gray-matter](https://github.com/jonschlinkert/gray-matter) for frontmatter parsing
 
 ## License
 

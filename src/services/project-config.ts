@@ -1,5 +1,6 @@
 import { Effect, Data } from "effect"
 import { FileSystem } from "@effect/platform"
+import { GrimoireHome } from "./grimoire-home.js"
 import { ProjectConfig, decodeProjectConfig, encodeProjectConfig } from "../schemas/project-config.js"
 
 const CONFIG_FILE = "grimoire.json"
@@ -15,16 +16,18 @@ export class ProjectConfigService extends Effect.Service<ProjectConfigService>()
     accessors: true,
     effect: Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem
+      const home = yield* GrimoireHome
 
-      const configPath = (dir: string) => `${dir}/${CONFIG_FILE}`
+      const configPath = (projectName: string) =>
+        `${home.projectDir(projectName)}/${CONFIG_FILE}`
 
-      const read = (dir: string) =>
+      const read = (projectName: string) =>
         Effect.gen(function* () {
-          const path = configPath(dir)
+          const path = configPath(projectName)
           const exists = yield* fs.exists(path)
           if (!exists) {
             return yield* Effect.fail(
-              new ProjectConfigError({ message: `No ${CONFIG_FILE} found in ${dir}` }),
+              new ProjectConfigError({ message: `Project '${projectName}' not found` }),
             )
           }
           const raw = yield* fs.readFileString(path)
@@ -36,17 +39,19 @@ export class ProjectConfigService extends Effect.Service<ProjectConfigService>()
           )
         })
 
-      const write = (dir: string, config: ProjectConfig) =>
+      const write = (projectName: string, config: ProjectConfig) =>
         Effect.gen(function* () {
+          const dir = home.projectDir(projectName)
+          yield* fs.makeDirectory(dir, { recursive: true })
           const encoded = yield* encodeProjectConfig(config).pipe(
             Effect.mapError(
               (e) => new ProjectConfigError({ message: "Failed to encode config", cause: e }),
             ),
           )
-          yield* fs.writeFileString(configPath(dir), JSON.stringify(encoded, null, 2) + "\n")
+          yield* fs.writeFileString(configPath(projectName), JSON.stringify(encoded, null, 2) + "\n")
         })
 
-      const exists = (dir: string) => fs.exists(configPath(dir))
+      const exists = (projectName: string) => fs.exists(configPath(projectName))
 
       return { read, write, exists }
     }),

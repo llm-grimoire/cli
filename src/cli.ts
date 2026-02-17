@@ -3,40 +3,40 @@ import { NodeContext, NodeRuntime } from "@effect/platform-node"
 import { Effect, Layer } from "effect"
 import { initCommand } from "./commands/init.js"
 import { analyzeCommand } from "./commands/analyze.js"
-import { buildCommand } from "./commands/build.js"
-import { addCommand } from "./commands/add.js"
-import { devCommand } from "./commands/dev.js"
+import { listCommand } from "./commands/list.js"
+import { showCommand } from "./commands/show.js"
+import { removeCommand } from "./commands/remove.js"
+import { GrimoireHome } from "./services/grimoire-home.js"
 import { ProjectConfigService } from "./services/project-config.js"
-import { ScaffoldService } from "./services/scaffold-service.js"
 import { TopicWriter } from "./services/topic-writer.js"
-import { ManifestGenerator } from "./services/manifest-generator.js"
+import { TopicReader } from "./services/topic-reader.js"
 import { CodebaseReader } from "./services/codebase-reader.js"
 import { AgentPromptGenerator } from "./services/agent-prompt-generator.js"
 import { UpdateNotifier } from "./services/update-notifier.js"
 
 const rootCommand = Command.make("grimoire").pipe(
-  Command.withDescription("AI-assisted codebase navigation CLI generator"),
+  Command.withDescription("AI-assisted codebase navigation"),
   Command.withSubcommands([
     initCommand,
     analyzeCommand,
-    buildCommand,
-    addCommand,
-    devCommand,
+    listCommand,
+    showCommand,
+    removeCommand,
   ]),
 )
 
-// Base services that don't have inter-service dependencies
+// Base services without inter-service dependencies
 const BaseServices = Layer.mergeAll(
-  ProjectConfigService.Default,
+  GrimoireHome.Default,
   TopicWriter.Default,
-  ManifestGenerator.Default,
   CodebaseReader.Default,
   UpdateNotifier.Default,
 )
 
-// Services that depend on base services
+// Services that depend on GrimoireHome
 const DependentServices = Layer.mergeAll(
-  ScaffoldService.Default,
+  ProjectConfigService.Default,
+  TopicReader.Default,
   AgentPromptGenerator.Default,
 )
 

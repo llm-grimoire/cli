@@ -7,10 +7,9 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { ProjectConfig } from "../schemas/project-config.js"
 import { ProjectConfigService } from "../services/project-config.js"
-import { ScaffoldService } from "../services/scaffold-service.js"
+import { GrimoireHome } from "../services/grimoire-home.js"
 import { AgentPromptGenerator } from "../services/agent-prompt-generator.js"
 import { TopicWriter } from "../services/topic-writer.js"
-import { ManifestGenerator } from "../services/manifest-generator.js"
 import * as render from "../lib/render.js"
 
 const isUrl = (s: string) =>
@@ -30,8 +29,7 @@ const shallowClone = (url: string): Promise<string> =>
   })
 
 const nameArg = Args.text({ name: "name" }).pipe(
-  Args.withDescription("Project name (e.g. 'my-project')"),
-  Args.optional,
+  Args.withDescription("Project name (e.g. 'effect-atom')"),
 )
 
 const targetOption = Options.text("target").pipe(
@@ -42,77 +40,62 @@ const targetOption = Options.text("target").pipe(
 
 const modeOption = Options.choice("mode", ["agent", "api"]).pipe(
   Options.withDescription("Analysis mode: 'agent' generates a prompt file, 'api' calls OpenRouter directly"),
-  Options.withDefault("agent"),
+  Options.optional,
 )
 
 const descriptionOption = Options.text("description").pipe(
   Options.withAlias("d"),
   Options.withDescription("Project description"),
-  Options.withDefault("A codebase navigation CLI"),
+  Options.withDefault("A codebase navigation project"),
 )
 
 export const initCommand = Command.make("init", {
   args: { name: nameArg },
   options: { target: targetOption, mode: modeOption, description: descriptionOption },
 }).pipe(
-  Command.withDescription("Scaffold a new solutions CLI project"),
+  Command.withDescription("Create a new grimoire project"),
   Command.withHandler(({ args, options }) =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem
-      const scaffold = yield* ScaffoldService
+      const home = yield* GrimoireHome
       const configService = yield* ProjectConfigService
 
+      const projectName = args.name
       const targetRaw = Option.getOrUndefined(options.target)
+      const mode = Option.getOrElse(options.mode, () => "agent" as const)
 
-      // Infer project name from target if not provided
-      const projectName = Option.getOrElse(args.name, () => {
-        if (targetRaw) {
-          const cleaned = targetRaw.replace(/\/+$/, "").replace(/\.git$/, "")
-          return cleaned.split("/").pop() ?? "my-project"
-        }
-        return "my-project"
-      })
-
-      const dirName = `${projectName}-solutions`
-      const cwd = process.cwd()
-      const targetDir = `${cwd}/${dirName}`
-
-      const exists = yield* fs.exists(targetDir)
+      // Check if project already exists
+      const exists = yield* home.projectExists(projectName)
       if (exists) {
-        yield* Console.log(render.error(`Directory ${dirName} already exists`))
+        yield* Console.log(render.error(`Project '${projectName}' already exists`))
         return
       }
 
+      yield* home.ensureHome()
+
       yield* Console.log("")
-      yield* Console.log(render.banner(`Creating ${dirName}...`))
+      yield* Console.log(render.banner(`Creating project '${projectName}'...`))
       yield* Console.log("")
 
       const config = new ProjectConfig({
         name: projectName,
-        cliName: `${projectName}-solutions`,
         description: options.description,
+        ...(targetRaw ? { source: targetRaw } : {}),
       })
 
-      yield* fs.makeDirectory(targetDir, { recursive: true })
+      // Create project directory and topics subdirectory
+      const projectDir = home.projectDir(projectName)
+      const topicsDir = `${projectDir}/topics`
+      yield* fs.makeDirectory(topicsDir, { recursive: true })
+      yield* configService.write(projectName, config)
 
-      const createdFiles = yield* scaffold.scaffold(targetDir, config)
-      yield* configService.write(targetDir, config)
+      yield* Console.log(render.success(`Project created at ~/.grimoire/projects/${projectName}/`))
 
-      for (const file of createdFiles) {
-        yield* Console.log(render.fileCreated(file))
-      }
-      yield* Console.log(render.fileCreated("grimoire.json"))
-
-      yield* Console.log("")
-      yield* Console.log(render.success(`Project created at ${dirName}/`))
-
-      // If a target codebase was provided, run analysis
+      // If no target provided, we're done
       if (!targetRaw) {
         yield* Console.log("")
         yield* Console.log(render.dim("Next steps:"))
-        yield* Console.log(render.dim(`  cd ${dirName}`))
-        yield* Console.log(render.dim("  npm install"))
-        yield* Console.log(render.dim(`  npx tsx src/cli.ts list`))
+        yield* Console.log(render.dim(`  grimoire analyze ${projectName} --target <path-or-url>`))
         yield* Console.log("")
         return
       }
@@ -132,7 +115,7 @@ export const initCommand = Command.make("init", {
       } else {
         codebasePath = targetRaw.startsWith("/")
           ? targetRaw
-          : `${cwd}/${targetRaw}`
+          : `${process.cwd()}/${targetRaw}`
       }
 
       try {
@@ -140,26 +123,22 @@ export const initCommand = Command.make("init", {
         yield* Console.log(render.banner(`Analyzing ${projectName}...`))
         yield* Console.log("")
 
-        if (options.mode === "agent") {
+        if (mode === "agent") {
           const generator = yield* AgentPromptGenerator
-          const promptPath = `${targetDir}/analysis-prompt.md`
+          const promptPath = `${projectDir}/analysis-prompt.md`
 
           yield* Console.log(render.info("Reading codebase..."))
           yield* generator.generate(codebasePath, promptPath, projectName)
 
           yield* Console.log("")
-          yield* Console.log(render.success(`Analysis prompt written to ${dirName}/analysis-prompt.md`))
+          yield* Console.log(render.success(`Analysis prompt written to ~/.grimoire/projects/${projectName}/analysis-prompt.md`))
           yield* Console.log("")
           yield* Console.log(render.dim("Next steps:"))
-          yield* Console.log(render.dim(`  cd ${dirName}`))
-          yield* Console.log(render.dim(`  # Feed analysis-prompt.md to Claude Code to generate topics`))
-          yield* Console.log(render.dim(`  grimoire build`))
-          yield* Console.log(render.dim(`  npx tsx src/cli.ts list`))
+          yield* Console.log(render.dim("  Feed analysis-prompt.md to Claude Code to generate topics"))
+          yield* Console.log(render.dim(`  grimoire list ${projectName}`))
           yield* Console.log("")
         } else {
           const topicWriter = yield* TopicWriter
-          const manifestGen = yield* ManifestGenerator
-          const topicsDir = `${targetDir}/${config.topicsDir}`
 
           const apiKey = process.env["OPENROUTER_API_KEY"]
           if (!apiKey) {
@@ -205,21 +184,15 @@ export const initCommand = Command.make("init", {
             })
           }
 
-          // Generate manifest
-          const manifestPath = `${targetDir}/src/docs-manifest.ts`
-          yield* manifestGen.generate(topicsDir, manifestPath)
-
           yield* Console.log("")
           yield* Console.log(render.success(`Generated ${topics.length} topics`))
           yield* Console.log("")
           yield* Console.log(render.dim("Next steps:"))
-          yield* Console.log(render.dim(`  cd ${dirName}`))
-          yield* Console.log(render.dim("  npm install"))
-          yield* Console.log(render.dim(`  npx tsx src/cli.ts list`))
+          yield* Console.log(render.dim(`  grimoire list ${projectName}`))
+          yield* Console.log(render.dim(`  grimoire show ${projectName} overview`))
           yield* Console.log("")
         }
       } finally {
-        // Clean up cloned repo
         if (clonedTempDir) {
           yield* Effect.promise(() => rm(clonedTempDir, { recursive: true, force: true }))
         }

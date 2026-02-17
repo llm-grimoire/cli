@@ -3,47 +3,56 @@ import { Console, Config, Effect, Layer, Option, Redacted } from "effect"
 import { FetchHttpClient } from "@effect/platform"
 import { AgentPromptGenerator } from "../services/agent-prompt-generator.js"
 import { ProjectConfigService } from "../services/project-config.js"
+import { GrimoireHome } from "../services/grimoire-home.js"
 import { TopicWriter } from "../services/topic-writer.js"
-import { OpenRouterLanguageModel, OpenRouterClient } from "@effect/ai-openrouter"
-import * as pipeline from "../ai/pipeline.js"
 import * as render from "../lib/render.js"
 
-const pathArg = Args.directory({ name: "path" }).pipe(
-  Args.withDescription("Path to the codebase to analyze"),
-  Args.withDefault("."),
+const projectArg = Args.text({ name: "project" }).pipe(
+  Args.withDescription("Project name to analyze"),
+)
+
+const targetOption = Options.text("target").pipe(
+  Options.withAlias("t"),
+  Options.withDescription("Path to the codebase (defaults to source from grimoire.json)"),
+  Options.optional,
 )
 
 const modeOption = Options.choice("mode", ["agent", "api"]).pipe(
-  Options.withDescription("Analysis mode: 'agent' generates a prompt file, 'api' uses Claude API directly"),
+  Options.withDescription("Analysis mode: 'agent' generates a prompt file, 'api' uses OpenRouter directly"),
   Options.withDefault("agent"),
 )
 
-const outputOption = Options.text("output").pipe(
-  Options.withAlias("o"),
-  Options.withDescription("Output path for generated prompt or topics"),
-  Options.optional,
-)
-
-const nameOption = Options.text("name").pipe(
-  Options.withAlias("n"),
-  Options.withDescription("Project name for the analysis"),
-  Options.optional,
-)
-
 export const analyzeCommand = Command.make("analyze", {
-  args: { path: pathArg },
-  options: { mode: modeOption, output: outputOption, name: nameOption },
+  args: { project: projectArg },
+  options: { target: targetOption, mode: modeOption },
 }).pipe(
-  Command.withDescription("AI-assisted codebase analysis"),
+  Command.withDescription("Run or rerun analysis for a project"),
   Command.withHandler(({ args, options }) =>
     Effect.gen(function* () {
-      const codebasePath = args.path.startsWith("/")
-        ? args.path
-        : `${process.cwd()}/${args.path}`
+      const home = yield* GrimoireHome
+      const configService = yield* ProjectConfigService
 
-      const projectName = Option.getOrElse(options.name, () =>
-        codebasePath.split("/").pop() ?? "project",
-      )
+      const projectName = args.project
+      const exists = yield* home.projectExists(projectName)
+      if (!exists) {
+        yield* Console.log(render.error(`Project '${projectName}' not found. Run 'grimoire init ${projectName}' first.`))
+        return
+      }
+
+      const config = yield* configService.read(projectName)
+      const projectDir = home.projectDir(projectName)
+      const topicsDir = `${projectDir}/topics`
+
+      // Resolve target: from --target flag, or from config source
+      const targetRaw = Option.getOrUndefined(options.target) ?? config.source
+      if (!targetRaw) {
+        yield* Console.log(render.error("No target specified. Use --target <path> or set source in grimoire.json"))
+        return
+      }
+
+      const codebasePath = targetRaw.startsWith("/")
+        ? targetRaw
+        : `${process.cwd()}/${targetRaw}`
 
       yield* Console.log("")
       yield* Console.log(render.banner(`Analyzing ${projectName}...`))
@@ -51,29 +60,25 @@ export const analyzeCommand = Command.make("analyze", {
 
       if (options.mode === "agent") {
         const generator = yield* AgentPromptGenerator
-        const outputPath = Option.getOrElse(options.output, () =>
-          `${process.cwd()}/${projectName}-analysis-prompt.md`,
-        )
+        const promptPath = `${projectDir}/analysis-prompt.md`
 
         yield* Console.log(render.info("Reading codebase..."))
-        yield* generator.generate(codebasePath, outputPath, projectName)
+        yield* generator.generate(codebasePath, promptPath, projectName)
 
         yield* Console.log("")
-        yield* Console.log(render.success(`Agent prompt written to: ${outputPath}`))
+        yield* Console.log(render.success(`Agent prompt written to ~/.grimoire/projects/${projectName}/analysis-prompt.md`))
         yield* Console.log("")
-        yield* Console.log(render.dim("Use this prompt with Claude Code or another AI agent to generate topics."))
-        yield* Console.log(render.dim("Then run 'grimoire build' to compile the CLI."))
+        yield* Console.log(render.dim("Use this prompt with Claude Code to generate topics."))
+        yield* Console.log(render.dim(`Then run 'grimoire list ${projectName}' to see results.`))
         yield* Console.log("")
       } else {
         const topicWriter = yield* TopicWriter
-        const configService = yield* ProjectConfigService
 
-        const topicsDir = yield* configService.read(process.cwd()).pipe(
-          Effect.map((config) => `${process.cwd()}/${config.topicsDir}`),
-          Effect.orElseSucceed(() =>
-            Option.getOrElse(options.output, () => `${process.cwd()}/topics`),
-          ),
-        )
+        const apiKey = process.env["OPENROUTER_API_KEY"]
+        if (!apiKey) {
+          yield* Console.log(render.error("OPENROUTER_API_KEY environment variable is required for --mode api"))
+          return
+        }
 
         yield* Console.log(render.info("Running AI analysis pipeline..."))
         yield* Console.log(render.dim("  Phase 1: Discovery"))
@@ -81,11 +86,12 @@ export const analyzeCommand = Command.make("analyze", {
         yield* Console.log(render.dim("  Phase 3: Topic Generation"))
         yield* Console.log("")
 
-        const apiKey = process.env["OPENROUTER_API_KEY"]
-        if (!apiKey) {
-          yield* Console.log(render.error("OPENROUTER_API_KEY environment variable is required for --mode api"))
-          return
-        }
+        const { OpenRouterLanguageModel, OpenRouterClient } = yield* Effect.promise(
+          () => import("@effect/ai-openrouter"),
+        )
+        const pipeline = yield* Effect.promise(
+          () => import("../ai/pipeline.js"),
+        )
 
         const AiLayer = OpenRouterLanguageModel.layer({
           model: "anthropic/claude-opus-4.5",
@@ -102,9 +108,8 @@ export const analyzeCommand = Command.make("analyze", {
           Effect.provide(AiLayer),
         )
 
-        const writtenFiles: string[] = []
         for (const topic of topics) {
-          const filePath = yield* topicWriter.write(topicsDir, {
+          yield* topicWriter.write(topicsDir, {
             slug: topic.slug,
             title: topic.title,
             description: topic.description,
@@ -114,15 +119,11 @@ export const analyzeCommand = Command.make("analyze", {
             relatedFiles: topic.relatedFiles as string[],
             content: "\n" + topic.content,
           })
-          writtenFiles.push(filePath)
         }
 
         yield* Console.log(render.success(`Generated ${topics.length} topics`))
-        for (const file of writtenFiles) {
-          yield* Console.log(render.fileCreated(file))
-        }
         yield* Console.log("")
-        yield* Console.log(render.dim("Run 'grimoire build' to compile the CLI."))
+        yield* Console.log(render.dim(`Run 'grimoire list ${projectName}' to see topics.`))
         yield* Console.log("")
       }
     }),
