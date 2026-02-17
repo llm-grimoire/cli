@@ -5,15 +5,11 @@ import { GrimoireHome } from "../services/grimoire-home.js"
 import { ProjectConfig } from "../schemas/project-config.js"
 import * as render from "../lib/render.js"
 
-const REGISTRY_REPO = "llm-grimoire/registry"
-const REGISTRY_BRANCH = "main"
+const REGISTRY_BASE = "https://grimoire.dev"
 
 const nameArg = Args.text({ name: "name" }).pipe(
   Args.withDescription("Registry name — 'owner/repo' for exact match, or a search term"),
 )
-
-const rawUrl = (path: string) =>
-  `https://raw.githubusercontent.com/${REGISTRY_REPO}/${REGISTRY_BRANCH}/${path}`
 
 const fetchText = (url: string): Effect.Effect<string, Error> =>
   Effect.tryPromise({
@@ -39,25 +35,31 @@ export const addCommand = Command.make("add", {
 
       const name = args.name
 
-      // Determine registry path — prefixed under packages/
-      const registryPath = `packages/${name}`
-
       yield* Console.error("")
       yield* Console.error(render.info(`Fetching grimoire for '${name}' from registry...`))
 
-      // Fetch grimoire.json from registry
-      const configUrl = rawUrl(`${registryPath}/grimoire.json`)
-      const configJson = yield* fetchJson(configUrl).pipe(
+      // Fetch grimoire metadata from API
+      const [owner, repo] = name.split("/")
+      if (!owner || !repo) {
+        yield* Effect.fail(new Error(
+          `Invalid name '${name}'. Use 'owner/repo' format (e.g. 'tim-smart/effect-atom').`,
+        ))
+        return
+      }
+
+      const configJson = yield* fetchJson(
+        `${REGISTRY_BASE}/api/v1/grimoires/${owner}/${repo}/index.json`,
+      ).pipe(
         Effect.catchAll(() =>
           Effect.fail(new Error(
             `Could not find '${name}' in the registry.\n` +
-            `  Check https://github.com/${REGISTRY_REPO} for available grimoires.`,
+            `  Check ${REGISTRY_BASE} for available grimoires.`,
           )),
         ),
       )
 
       const config = yield* Schema.decodeUnknown(ProjectConfig)(configJson).pipe(
-        Effect.mapError((e) => new Error(`Invalid grimoire.json in registry: ${e}`)),
+        Effect.mapError((e) => new Error(`Invalid grimoire config in registry: ${e}`)),
       )
 
       // Check if project already exists locally
@@ -81,23 +83,32 @@ export const addCommand = Command.make("add", {
         JSON.stringify(configJson, null, 2) + "\n",
       )
 
-      // Fetch topic listing via GitHub API
-      const apiUrl = `https://api.github.com/repos/${REGISTRY_REPO}/contents/${registryPath}/topics`
-      const listing = yield* fetchJson(apiUrl).pipe(
-        Effect.catchAll(() => Effect.succeed([] as Array<{ name: string }>)),
-      ) as Effect.Effect<Array<{ name: string }>>
+      // Fetch topic listing from API
+      const topicsResponse = yield* fetchJson(
+        `${REGISTRY_BASE}/api/v1/grimoires/${owner}/${repo}/topics.json`,
+      ).pipe(
+        Effect.catchAll(() => Effect.succeed({ topics: [] } as { topics: Array<{ slug: string; filename: string }> })),
+      ) as Effect.Effect<{ topics: Array<{ slug: string; filename: string }> }>
 
-      const mdFiles = (listing as Array<{ name: string }>).filter(
-        (f) => f.name.endsWith(".md"),
-      )
+      const topicList = (topicsResponse as { topics: Array<{ slug: string; filename: string }> }).topics
 
       let downloaded = 0
-      for (const file of mdFiles) {
-        const content = yield* fetchText(rawUrl(`${registryPath}/topics/${file.name}`)).pipe(
-          Effect.catchAll(() => Effect.succeed("")),
+      for (const topic of topicList) {
+        const topicData = yield* fetchJson(
+          `${REGISTRY_BASE}/api/v1/grimoires/${owner}/${repo}/topics/${topic.slug}.json`,
+        ).pipe(
+          Effect.catchAll(() => Effect.succeed(null)),
         )
-        if (content) {
-          yield* fs.writeFileString(`${topicsDir}/${file.name}`, content)
+
+        if (topicData) {
+          const { frontmatter, content } = topicData as { frontmatter: Record<string, unknown>; content: string }
+          // Reconstruct the markdown file with frontmatter
+          const yamlLines = Object.entries(frontmatter).map(([key, val]) => {
+            if (Array.isArray(val)) return `${key}: [${val.join(", ")}]`
+            return `${key}: ${val}`
+          })
+          const md = `---\n${yamlLines.join("\n")}\n---\n${content}`
+          yield* fs.writeFileString(`${topicsDir}/${topic.filename}`, md)
           downloaded++
         }
       }
