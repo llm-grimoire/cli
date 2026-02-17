@@ -6,6 +6,7 @@ import { analyzeCommand } from "./commands/analyze.js"
 import { listCommand } from "./commands/list.js"
 import { showCommand } from "./commands/show.js"
 import { removeCommand } from "./commands/remove.js"
+import { contextCommand } from "./commands/context.js"
 import { GrimoireHome } from "./services/grimoire-home.js"
 import { ProjectConfigService } from "./services/project-config.js"
 import { TopicWriter } from "./services/topic-writer.js"
@@ -22,6 +23,7 @@ const rootCommand = Command.make("grimoire").pipe(
     listCommand,
     showCommand,
     removeCommand,
+    contextCommand,
   ]),
 )
 
