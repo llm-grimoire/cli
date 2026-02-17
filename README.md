@@ -95,7 +95,7 @@ grimoire remove my-project
 1. `grimoire init` creates a project directory in `~/.grimoire/projects/<name>/`
 2. Analysis reads the codebase (respecting `.gitignore`), then either generates a prompt for an AI agent or calls OpenRouter to produce topics directly
 3. Topics are markdown files with YAML frontmatter, read directly at runtime — no build step
-4. `list` and `show` parse frontmatter with gray-matter and render to the terminal
+4. `list` and `show` parse frontmatter and render to the terminal
 
 ## Topic Format
 
@@ -134,7 +134,6 @@ Everything lives in `~/.grimoire` (override with `GRIMOIRE_HOME`):
 
 - [Effect](https://effect.website) + [@effect/cli](https://github.com/Effect-TS/effect/tree/main/packages/cli)
 - [@effect/ai-openrouter](https://github.com/Effect-TS/effect/tree/main/packages/ai-openrouter) (optional, for `--mode api`)
-- [gray-matter](https://github.com/jonschlinkert/gray-matter) for frontmatter parsing
 
 ## License
 

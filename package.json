@@ -1,7 +1,7 @@
 {
   "name": "grimoire-gen",
   "version": "0.1.0",
-  "description": "Generate navigable documentation CLIs for any codebase",
+  "description": "Instant codebase documentation for AI agents and humans",
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -23,7 +23,6 @@
   "files": [
     "bin.js",
     "src/**/*.ts",
-    "scripts/**/*.ts",
     "tsconfig.json",
     "README.md"
   ],
@@ -39,8 +38,7 @@
     "@effect/platform": "^0.94.2",
     "@effect/platform-node": "^0.104.0",
     "effect": "^3.19.14",
-    "gray-matter": "^4.0.3",
-    "picocolors": "^1.1.1",
+"picocolors": "^1.1.1",
     "tsx": "^4.21.0"
   },
   "devDependencies": {

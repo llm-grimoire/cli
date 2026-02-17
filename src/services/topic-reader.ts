@@ -1,12 +1,29 @@
 import { Effect, Data } from "effect"
 import { FileSystem } from "@effect/platform"
 import { GrimoireHome } from "./grimoire-home.js"
-import matter from "gray-matter"
 
 export class TopicReaderError extends Data.TaggedError("TopicReaderError")<{
   readonly message: string
   readonly cause?: unknown
 }> {}
+
+const parseFrontmatter = (raw: string): { data: Record<string, string>; content: string } => {
+  if (!raw.startsWith("---\n")) return { data: {}, content: raw }
+  const end = raw.indexOf("\n---\n", 4)
+  if (end === -1) return { data: {}, content: raw }
+  const data: Record<string, string> = {}
+  for (const line of raw.slice(4, end).split("\n")) {
+    const idx = line.indexOf(": ")
+    if (idx !== -1) data[line.slice(0, idx)] = line.slice(idx + 2)
+  }
+  return { data, content: raw.slice(end + 5) }
+}
+
+const parseArray = (s: string | undefined): string[] => {
+  if (!s || s === "[]") return []
+  const inner = s.startsWith("[") ? s.slice(1, -1) : s
+  return inner.split(",").map((v) => v.trim()).filter(Boolean)
+}
 
 interface TopicEntry {
   slug: string
@@ -44,15 +61,15 @@ export class TopicReader extends Effect.Service<TopicReader>()(
           for (const file of mdFiles) {
             const filePath = `${dir}/${file}`
             const raw = yield* fs.readFileString(filePath)
-            const { data, content } = matter(raw)
+            const { data, content } = parseFrontmatter(raw)
             topics.push({
-              slug: (data.slug as string) ?? file.replace(/\.md$/, "").replace(/^\d+-/, ""),
-              title: (data.title as string) ?? file.replace(/\.md$/, ""),
-              description: (data.description as string) ?? "",
-              order: (data.order as number) ?? 0,
-              category: (data.category as string) ?? "general",
-              tags: (data.tags as string[]) ?? [],
-              relatedFiles: (data.relatedFiles as string[]) ?? [],
+              slug: data.slug ?? file.replace(/\.md$/, "").replace(/^\d+-/, ""),
+              title: data.title ?? file.replace(/\.md$/, ""),
+              description: data.description ?? "",
+              order: Number(data.order ?? 0),
+              category: data.category ?? "general",
+              tags: parseArray(data.tags),
+              relatedFiles: parseArray(data.relatedFiles),
               content: content.trim(),
               filePath,
             })
