@@ -87,6 +87,7 @@ grimoire incant tim-smart/effect-atom        # markdown snippet for agent instru
 
 | Command | Purpose |
 |---------|---------|
+| `grimoire search [query]` | Browse and install from the registry (interactive) |
 | `grimoire add <owner/repo>` | Pull pre-built grimoire from registry |
 | `grimoire conjure [name] [--github] [--path] [--mode] [--hint]` | Generate docs from a codebase |
 | `grimoire push <name>` | Contribute to the registry |

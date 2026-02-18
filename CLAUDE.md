@@ -9,8 +9,9 @@ AI-assisted codebase navigation. Analyzes any codebase (via AI or agent prompts)
 **Core redesign complete.** All commands work end-to-end with centralized `~/.grimoire` storage. Registry support (`add`/`push`) is in v1 form.
 
 ### Commands
-- `grimoire add <name>` — pull pre-built grimoire from registry
-- `grimoire conjure <name> [--github owner/repo] [--path dir] [--mode agent|api]` — generate locally (creates project if needed)
+- `grimoire search [query]` — browse and install from the registry (interactive prompt, or static with query)
+- `grimoire add <owner/repo>` — pull pre-built grimoire from registry
+- `grimoire conjure [name] [--github owner/repo] [--path dir] [--mode agent|api] [--hint text]` — generate locally (name optional with `--github`)
 - `grimoire push <name>` — contribute local grimoire to registry (outputs instructions for PR)
 - `grimoire list [project]` — list all projects or topics for a project
 - `grimoire show <project> <topic>` — show a topic
@@ -29,38 +30,43 @@ AI-assisted codebase navigation. Analyzes any codebase (via AI or agent prompts)
 ```
 ~/.grimoire/
   projects/
-    effect-atom/
-      grimoire.json          # Project config (name, description, github, path, sourceType)
-      topics/
-        00-overview.md
-        01-architecture.md
-        ...
-    another-project/
+    tim-smart/
+      effect-atom/
+        grimoire.json        # Project config (name, description, github, path, sourceType)
+        topics/
+          00-overview.md
+          01-architecture.md
+          ...
+    my-lib/
       grimoire.json
       topics/
 ```
+
+Registry projects are stored as `owner/repo/` (nested two levels). Local projects are stored flat.
 
 No manifest — `list` and `show` read topic `.md` files directly, parsing frontmatter at runtime. Respects `GRIMOIRE_HOME` env var to override `~/.grimoire`.
 
 ## Registry
 
-Git repo at `github.com/grimoire-registry/registry`, namespaced by GitHub owner/repo:
+Git repo at `github.com/llm-grimoire/registry`, namespaced by GitHub owner/repo. Served via static API at [llm-grimoire.dev](https://llm-grimoire.dev).
 
 ```
 registry/
-  tim-smart/
-    effect-atom/
-      grimoire.json
-      topics/...
-  effect-ts/
-    effect/
-      sql/              # monorepo sub-package
+  packages/
+    tim-smart/
+      effect-atom/
         grimoire.json
         topics/...
+    effect-ts/
+      effect/
+        sql/              # monorepo sub-package
+          grimoire.json
+          topics/...
 ```
 
-- `grimoire add owner/repo` fetches from registry via raw GitHub URLs
-- `grimoire push name` outputs instructions for contributing via PR
+- `grimoire search` — interactive browser for the registry
+- `grimoire add owner/repo` — fetches from the registry API at llm-grimoire.dev
+- `grimoire push name` — outputs instructions for contributing via PR
 
 ## Architecture
 
@@ -75,12 +81,13 @@ registry/
 ### Service Dependencies
 ```
 CLI Commands
+  ├── search    → GrimoireHome (interactive registry browser)
   ├── add       → GrimoireHome (fetches from registry)
   ├── conjure   → GrimoireHome, ProjectConfigService, AgentPromptGenerator | TopicWriter
   ├── push      → GrimoireHome, ProjectConfigService, TopicReader
   ├── list      → GrimoireHome, ProjectConfigService, TopicReader
   ├── show      → GrimoireHome, TopicReader
-  ├── incant   → GrimoireHome, ProjectConfigService, TopicReader
+  ├── incant    → GrimoireHome, ProjectConfigService, TopicReader
   └── remove    → GrimoireHome, FileSystem
 
 GrimoireHome → FileSystem (resolves ~/.grimoire path)
@@ -115,22 +122,27 @@ npm run typecheck                 # tsc --noEmit
 
 ### Testing end-to-end
 ```bash
-# Analyze with GitHub source
-npx tsx src/cli.ts analyze effect-atom --github tim-smart/effect-atom
+# Browse / search registry
+npx tsx src/cli.ts search
+npx tsx src/cli.ts search effect
 
-# Analyze monorepo sub-package
-npx tsx src/cli.ts analyze effect-sql --github effect-ts/effect --path packages/sql
+# Install from registry
+npx tsx src/cli.ts add tim-smart/effect-atom
 
-# Analyze local path
-npx tsx src/cli.ts analyze my-lib --path ./src
+# Generate with GitHub source (name defaults to owner/repo)
+npx tsx src/cli.ts conjure --github tim-smart/effect-atom
 
-# Re-analyze (uses stored config)
-npx tsx src/cli.ts analyze effect-atom
+# Generate monorepo sub-package (name required)
+npx tsx src/cli.ts conjure effect-sql --github effect-ts/effect --path packages/sql
+
+# Generate from local path (name required)
+npx tsx src/cli.ts conjure my-lib --path ./src
 
 # List / show / remove
 npx tsx src/cli.ts list
-npx tsx src/cli.ts list effect-atom
-npx tsx src/cli.ts remove effect-atom
+npx tsx src/cli.ts list tim-smart/effect-atom
+npx tsx src/cli.ts show tim-smart/effect-atom overview
+npx tsx src/cli.ts remove tim-smart/effect-atom
 ```
 
 ## File Layout
@@ -138,7 +150,7 @@ npx tsx src/cli.ts remove effect-atom
 ```
 src/
   cli.ts                          # Root entry point, layer composition
-  commands/                       # CLI command definitions (add, conjure, push, list, show, incant, remove)
+  commands/                       # CLI command definitions (search, add, conjure, push, list, show, incant, remove)
   services/                       # Effect services (GrimoireHome, ProjectConfig, TopicReader, SourceResolver, etc.)
   schemas/                        # Effect Schema definitions (project-config, topic, analysis)
   ai/                             # AI pipeline (prompts, tools, pipeline orchestration)
