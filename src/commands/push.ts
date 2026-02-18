@@ -35,14 +35,14 @@ export const pushCommand = Command.make("push", {
       // Validate github is set
       if (!config.github) {
         yield* Console.error(render.error("Cannot push: no 'github' field in grimoire.json."))
-        yield* Console.error(render.dim("Set it with: grimoire analyze <name> --github owner/repo"))
+        yield* Console.error(render.dim("Set it with: grimoire conjure <name> --github owner/repo"))
         return
       }
 
       // Validate topics exist
       const topics = yield* topicReader.readAll(projectName)
       if (topics.length === 0) {
-        yield* Console.error(render.error("Cannot push: no topics found. Run 'grimoire analyze' first."))
+        yield* Console.error(render.error("Cannot push: no topics found. Run 'grimoire conjure' first."))
         return
       }
 

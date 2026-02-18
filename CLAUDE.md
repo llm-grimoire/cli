@@ -10,11 +10,11 @@ AI-assisted codebase navigation. Analyzes any codebase (via AI or agent prompts)
 
 ### Commands
 - `grimoire add <name>` — pull pre-built grimoire from registry
-- `grimoire analyze <name> [--github owner/repo] [--path dir] [--mode agent|api]` — generate locally (creates project if needed)
+- `grimoire conjure <name> [--github owner/repo] [--path dir] [--mode agent|api]` — generate locally (creates project if needed)
 - `grimoire push <name>` — contribute local grimoire to registry (outputs instructions for PR)
 - `grimoire list [project]` — list all projects or topics for a project
 - `grimoire show <project> <topic>` — show a topic
-- `grimoire context <project>` — output agent instructions
+- `grimoire incant <project>` — output agent instructions
 - `grimoire remove <project>` — remove a project
 
 ### What's Remaining (Polish)
@@ -76,11 +76,11 @@ registry/
 ```
 CLI Commands
   ├── add       → GrimoireHome (fetches from registry)
-  ├── analyze   → GrimoireHome, ProjectConfigService, AgentPromptGenerator | TopicWriter
+  ├── conjure   → GrimoireHome, ProjectConfigService, AgentPromptGenerator | TopicWriter
   ├── push      → GrimoireHome, ProjectConfigService, TopicReader
   ├── list      → GrimoireHome, ProjectConfigService, TopicReader
   ├── show      → GrimoireHome, TopicReader
-  ├── context   → GrimoireHome, ProjectConfigService, TopicReader
+  ├── incant   → GrimoireHome, ProjectConfigService, TopicReader
   └── remove    → GrimoireHome, FileSystem
 
 GrimoireHome → FileSystem (resolves ~/.grimoire path)
@@ -138,7 +138,7 @@ npx tsx src/cli.ts remove effect-atom
 ```
 src/
   cli.ts                          # Root entry point, layer composition
-  commands/                       # CLI command definitions (add, analyze, push, list, show, context, remove)
+  commands/                       # CLI command definitions (add, conjure, push, list, show, incant, remove)
   services/                       # Effect services (GrimoireHome, ProjectConfig, TopicReader, SourceResolver, etc.)
   schemas/                        # Effect Schema definitions (project-config, topic, analysis)
   ai/                             # AI pipeline (prompts, tools, pipeline orchestration)

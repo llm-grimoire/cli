@@ -9,10 +9,10 @@ const projectArg = Args.text({ name: "project" }).pipe(
   Args.withDescription("Project name"),
 )
 
-export const contextCommand = Command.make("context", {
+export const incantCommand = Command.make("incant", {
   args: { project: projectArg },
 }).pipe(
-  Command.withDescription("Output agent context snippet for a project"),
+  Command.withDescription("Recite a grimoire as agent context"),
   Command.withHandler(({ args }) =>
     Effect.gen(function* () {
       const home = yield* GrimoireHome

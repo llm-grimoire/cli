@@ -2,11 +2,11 @@ import { Command } from "@effect/cli"
 import { NodeContext, NodeRuntime } from "@effect/platform-node"
 import { Effect, Layer } from "effect"
 import { addCommand } from "./commands/add.js"
-import { analyzeCommand } from "./commands/analyze.js"
+import { conjureCommand } from "./commands/conjure.js"
 import { listCommand } from "./commands/list.js"
 import { showCommand } from "./commands/show.js"
 import { removeCommand } from "./commands/remove.js"
-import { contextCommand } from "./commands/context.js"
+import { incantCommand } from "./commands/incant.js"
 import { pushCommand } from "./commands/push.js"
 import { GrimoireHome } from "./services/grimoire-home.js"
 import { ProjectConfigService } from "./services/project-config.js"
@@ -20,11 +20,11 @@ const rootCommand = Command.make("grimoire").pipe(
   Command.withDescription("AI-assisted codebase navigation"),
   Command.withSubcommands([
     addCommand,
-    analyzeCommand,
+    conjureCommand,
     listCommand,
     showCommand,
     removeCommand,
-    contextCommand,
+    incantCommand,
     pushCommand,
   ]),
 )

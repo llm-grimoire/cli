@@ -35,11 +35,11 @@ const descriptionOption = Options.text("description").pipe(
   Options.withDefault("A codebase navigation project"),
 )
 
-export const analyzeCommand = Command.make("analyze", {
+export const conjureCommand = Command.make("conjure", {
   args: { name: nameArg },
   options: { github: githubOption, path: pathOption, mode: modeOption, description: descriptionOption },
 }).pipe(
-  Command.withDescription("Analyze a codebase and generate topic documentation"),
+  Command.withDescription("Conjure topic documentation from a codebase"),
   Command.withHandler(({ args, options }) =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem

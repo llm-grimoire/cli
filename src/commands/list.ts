@@ -59,7 +59,7 @@ export const listCommand = Command.make("list", {
         if (topics.length === 0) {
           yield* Console.log("")
           yield* Console.log(render.dim(`No topics in '${projectName}'. Run analysis first:`))
-          yield* Console.log(render.dim(`  grimoire analyze ${projectName} --target <path>`))
+          yield* Console.log(render.dim(`  grimoire conjure ${projectName} --target <path>`))
           yield* Console.log("")
           return
         }
