@@ -127,6 +127,11 @@ export const conjureCommand = Command.make("conjure", {
         path: resolvedPath,
       })
 
+      if (source.sourceRef && source.sourceRef !== config.sourceRef) {
+        config = new ProjectConfig({ ...config, sourceRef: source.sourceRef })
+        yield* configService.write(projectName, config)
+      }
+
       const projectDir = home.projectDir(projectName)
       const topicsDir = `${projectDir}/topics`
 

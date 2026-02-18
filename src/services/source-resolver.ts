@@ -1,5 +1,5 @@
 import { Effect, Data } from "effect"
-import { spawn } from "node:child_process"
+import { execFile, spawn } from "node:child_process"
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
@@ -12,6 +12,7 @@ export class SourceResolverError extends Data.TaggedError("SourceResolverError")
 export interface ResolvedSource {
   readonly codebasePath: string
   readonly cleanup?: () => Promise<void>
+  readonly sourceRef?: string
 }
 
 const shallowClone = (url: string): Promise<string> =>
@@ -25,6 +26,13 @@ const shallowClone = (url: string): Promise<string> =>
       )
       proc.on("error", reject)
     }).catch(reject)
+  })
+
+const getHeadSha = (dir: string): Promise<string | undefined> =>
+  new Promise((resolve) => {
+    execFile("git", ["rev-parse", "HEAD"], { cwd: dir }, (err, stdout) => {
+      resolve(err ? undefined : stdout.trim())
+    })
   })
 
 const isFullUrl = (s: string) =>
@@ -45,10 +53,17 @@ export const resolveSource = (opts: {
         catch: (e) => new SourceResolverError({ message: `Failed to clone ${url}`, cause: e }),
       })
 
+      const sha = yield* Effect.tryPromise({
+        try: () => getHeadSha(tempDir),
+        catch: () => new SourceResolverError({ message: "Failed to read HEAD SHA" }),
+      })
+
       const codebasePath = opts.path ? join(tempDir, opts.path) : tempDir
       const cleanup = () => rm(tempDir, { recursive: true, force: true })
 
-      return { codebasePath, cleanup }
+      return sha
+        ? { codebasePath, cleanup, sourceRef: sha }
+        : { codebasePath, cleanup }
     }
 
     if (opts.path) {
