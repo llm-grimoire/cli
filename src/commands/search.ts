@@ -19,7 +19,6 @@ interface RegistryGrimoire {
   repo: string
   description: string
   topicCount: number
-  version: string
 }
 
 // ---------------------------------------------------------------------------
