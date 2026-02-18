@@ -7,7 +7,6 @@ import { listCommand } from "./commands/list.js"
 import { showCommand } from "./commands/show.js"
 import { removeCommand } from "./commands/remove.js"
 import { incantCommand } from "./commands/incant.js"
-import { pushCommand } from "./commands/push.js"
 import { searchCommand } from "./commands/search.js"
 import { createRequire } from "node:module"
 
@@ -30,7 +29,6 @@ const rootCommand = Command.make("grimoire").pipe(
     showCommand,
     removeCommand,
     incantCommand,
-    pushCommand,
     searchCommand,
   ]),
 )

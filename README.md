@@ -90,7 +90,6 @@ grimoire incant tim-smart/effect-atom        # markdown snippet for agent instru
 | `grimoire search [query]` | Browse and install from the registry (interactive) |
 | `grimoire add <owner/repo>` | Pull pre-built grimoire from registry |
 | `grimoire conjure [name] [--github] [--path] [--mode] [--hint]` | Generate docs from a codebase |
-| `grimoire push <name>` | Contribute to the registry |
 | `grimoire list [project]` | List projects or topics |
 | `grimoire show <project> <topic>` | Read a topic |
 | `grimoire incant <project>` | Output agent instructions |
@@ -110,7 +109,6 @@ grimoire incant tim-smart/effect-atom        # markdown snippet for agent instru
 3. Topics are markdown files with YAML frontmatter — no build step, read directly at runtime
 4. `list`, `show`, and `incant` parse frontmatter and render to the terminal
 5. `add` pulls pre-built grimoires from the public registry at [llm-grimoire.dev](https://llm-grimoire.dev)
-6. `push` helps you contribute your grimoire back to the registry
 
 ## Storage
 

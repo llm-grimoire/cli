@@ -12,7 +12,6 @@ AI-assisted codebase navigation. Analyzes any codebase (via AI or agent prompts)
 - `grimoire search [query]` — browse and install from the registry (interactive prompt, or static with query)
 - `grimoire add <owner/repo>` — pull pre-built grimoire from registry
 - `grimoire conjure [name] [--github owner/repo] [--path dir] [--mode agent|api] [--hint text]` — generate locally (name optional with `--github`)
-- `grimoire push <name>` — contribute local grimoire to registry (outputs instructions for PR)
 - `grimoire list [project]` — list all projects or topics for a project
 - `grimoire show <project> <topic>` — show a topic
 - `grimoire incant <project>` — output agent instructions
@@ -23,7 +22,6 @@ AI-assisted codebase navigation. Analyzes any codebase (via AI or agent prompts)
 - Error handling could be more user-friendly (raw Effect errors leak in some cases)
 - No tests
 - `toolkit.ts` is a placeholder — the pipeline uses `generateObject` directly instead of tool-based interactions
-- `push` outputs manual instructions — could automate fork/PR via `gh`
 
 ## Directory Structure
 
@@ -66,7 +64,6 @@ registry/
 
 - `grimoire search` — interactive browser for the registry
 - `grimoire add owner/repo` — fetches from the registry API at llm-grimoire.dev
-- `grimoire push name` — outputs instructions for contributing via PR
 
 ## Architecture
 
@@ -84,7 +81,6 @@ CLI Commands
   ├── search    → GrimoireHome (interactive registry browser)
   ├── add       → GrimoireHome (fetches from registry)
   ├── conjure   → GrimoireHome, ProjectConfigService, AgentPromptGenerator | TopicWriter
-  ├── push      → GrimoireHome, ProjectConfigService, TopicReader
   ├── list      → GrimoireHome, ProjectConfigService, TopicReader
   ├── show      → GrimoireHome, TopicReader
   ├── incant    → GrimoireHome, ProjectConfigService, TopicReader
@@ -150,7 +146,7 @@ npx tsx src/cli.ts remove tim-smart/effect-atom
 ```
 src/
   cli.ts                          # Root entry point, layer composition
-  commands/                       # CLI command definitions (search, add, conjure, push, list, show, incant, remove)
+  commands/                       # CLI command definitions (search, add, conjure, list, show, incant, remove)
   services/                       # Effect services (GrimoireHome, ProjectConfig, TopicReader, SourceResolver, etc.)
   schemas/                        # Effect Schema definitions (project-config, topic, analysis)
   ai/                             # AI pipeline (prompts, tools, pipeline orchestration)
