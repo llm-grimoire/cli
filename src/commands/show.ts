@@ -2,7 +2,6 @@ import { Args, Command } from "@effect/cli"
 import { Console, Effect } from "effect"
 import { GrimoireHome } from "../services/grimoire-home.js"
 import { TopicReader } from "../services/topic-reader.js"
-import { fetchFromRegistry, isRegistryRef } from "../services/registry-fetcher.js"
 import * as render from "../lib/render.js"
 
 const projectArg = Args.text({ name: "project" }).pipe(
@@ -22,18 +21,14 @@ export const showCommand = Command.make("show", {
       const home = yield* GrimoireHome
       const topicReader = yield* TopicReader
 
-      let projectName = args.project
-      const exists = yield* home.projectExists(projectName)
+      const exists = yield* home.projectExists(args.project)
       if (!exists) {
-        if (isRegistryRef(projectName)) {
-          projectName = yield* fetchFromRegistry(projectName)
-        } else {
-          yield* Console.log(render.error(`Project '${projectName}' not found`))
-          return
-        }
+        yield* Console.log(render.error(`Project '${args.project}' not found`))
+        yield* Console.log(render.dim(`  Use 'grimoire add owner/repo' to fetch from the registry first.`))
+        return
       }
 
-      const topic = yield* topicReader.readOne(projectName, args.topic)
+      const topic = yield* topicReader.readOne(args.project, args.topic)
 
       yield* Console.log("")
       yield* Console.log(render.heading(topic.title))

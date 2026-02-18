@@ -3,7 +3,6 @@ import { Console, Effect, Option } from "effect"
 import { GrimoireHome } from "../services/grimoire-home.js"
 import { ProjectConfigService } from "../services/project-config.js"
 import { TopicReader } from "../services/topic-reader.js"
-import { fetchFromRegistry, isRegistryRef } from "../services/registry-fetcher.js"
 import * as render from "../lib/render.js"
 
 const projectArg = Args.text({ name: "project" }).pipe(
@@ -49,29 +48,25 @@ export const listCommand = Command.make("list", {
         const home = yield* GrimoireHome
         const topicReader = yield* TopicReader
 
-        let resolvedName = projectName
         const exists = yield* home.projectExists(projectName)
         if (!exists) {
-          if (isRegistryRef(projectName)) {
-            resolvedName = yield* fetchFromRegistry(projectName)
-          } else {
-            yield* Console.log(render.error(`Project '${projectName}' not found`))
-            return
-          }
+          yield* Console.log(render.error(`Project '${projectName}' not found`))
+          yield* Console.log(render.dim(`  Use 'grimoire add owner/repo' to fetch from the registry first.`))
+          return
         }
 
-        const topics = yield* topicReader.readAll(resolvedName)
+        const topics = yield* topicReader.readAll(projectName)
 
         if (topics.length === 0) {
           yield* Console.log("")
-          yield* Console.log(render.dim(`No topics in '${resolvedName}'. Run analysis first:`))
-          yield* Console.log(render.dim(`  grimoire conjure ${resolvedName} --target <path>`))
+          yield* Console.log(render.dim(`No topics in '${projectName}'. Run analysis first:`))
+          yield* Console.log(render.dim(`  grimoire conjure ${projectName} --target <path>`))
           yield* Console.log("")
           return
         }
 
         yield* Console.log("")
-        yield* Console.log(render.banner(`Topics in '${resolvedName}'`))
+        yield* Console.log(render.banner(`Topics in '${projectName}'`))
         yield* Console.log("")
 
         for (const topic of topics) {

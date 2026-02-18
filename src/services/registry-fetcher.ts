@@ -30,6 +30,13 @@ export const fetchFromRegistry = (ownerRepo: string) =>
       return yield* Effect.fail(new Error(`Invalid registry name '${ownerRepo}'.`))
     }
 
+    // Check if already exists locally under repo name
+    const localName = repo.toLowerCase()
+    const alreadyExists = yield* home.projectExists(localName)
+    if (alreadyExists) {
+      return localName
+    }
+
     yield* Console.error(render.info(`Fetching '${ownerRepo}' from registry...`))
 
     const configJson = yield* fetchJson(
@@ -40,11 +47,10 @@ export const fetchFromRegistry = (ownerRepo: string) =>
       ),
     )
 
-    const config = yield* Schema.decodeUnknown(ProjectConfig)(configJson).pipe(
+    yield* Schema.decodeUnknown(ProjectConfig)(configJson).pipe(
       Effect.mapError((e) => new Error(`Invalid grimoire config: ${e}`)),
     )
 
-    const localName = config.name
     yield* home.ensureHome()
 
     const projectDir = home.projectDir(localName)
