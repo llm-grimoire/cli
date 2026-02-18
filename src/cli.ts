@@ -8,6 +8,10 @@ import { showCommand } from "./commands/show.js"
 import { removeCommand } from "./commands/remove.js"
 import { incantCommand } from "./commands/incant.js"
 import { pushCommand } from "./commands/push.js"
+import { createRequire } from "node:module"
+
+const require = createRequire(import.meta.url)
+const pkg = require("../package.json")
 import { GrimoireHome } from "./services/grimoire-home.js"
 import { ProjectConfigService } from "./services/project-config.js"
 import { TopicWriter } from "./services/topic-writer.js"
@@ -48,7 +52,7 @@ const ServiceLayer = Layer.provideMerge(DependentServices, BaseServices)
 
 const cli = Command.run(rootCommand, {
   name: "grimoire",
-  version: "0.1.0",
+  version: pkg.version,
 })
 
 cli(globalThis.process.argv).pipe(
