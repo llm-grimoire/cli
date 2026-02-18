@@ -15,7 +15,7 @@ export class AgentPromptGenerator extends Effect.Service<AgentPromptGenerator>()
       const fs = yield* FileSystem.FileSystem
       const reader = yield* CodebaseReader
 
-      const generate = (codebasePath: string, outputPath: string, projectName: string, topicsDir: string) =>
+      const generate = (codebasePath: string, outputPath: string, projectName: string, topicsDir: string, hint?: string) =>
         Effect.gen(function* () {
           const { formatted: fileTree } = yield* reader.getFileTree(codebasePath, 4)
           const keyFiles = yield* reader.findKeyFiles(codebasePath)
@@ -27,7 +27,7 @@ export class AgentPromptGenerator extends Effect.Service<AgentPromptGenerator>()
             keyFileContents.push({ path: relativePath, content })
           }
 
-          const prompt = buildPrompt(projectName, topicsDir, fileTree, keyFileContents)
+          const prompt = buildPrompt(projectName, topicsDir, fileTree, keyFileContents, hint)
           yield* fs.writeFileString(outputPath, prompt)
           return prompt
         }).pipe(
@@ -47,6 +47,7 @@ const buildPrompt = (
   topicsDir: string,
   fileTree: string,
   keyFiles: ReadonlyArray<{ path: string; content: string }>,
+  hint?: string,
 ): string => {
   const keyFileSections = keyFiles
     .map(
@@ -61,7 +62,7 @@ ${f.content.slice(0, 5000)}
 
 You are analyzing the **${projectName}** codebase to generate topic documentation.
 The goal is to produce 8-15 focused topic files that help AI agents navigate this codebase efficiently.
-
+${hint ? `\n## Context Hint\n\n${hint}\n` : ""}
 ## Output Directory
 
 Write all topic files to:

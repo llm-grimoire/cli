@@ -35,9 +35,14 @@ const descriptionOption = Options.text("description").pipe(
   Options.withDefault("A codebase navigation project"),
 )
 
+const hintOption = Options.text("hint").pipe(
+  Options.withDescription("Context hint to guide the AI (e.g. 'This repo has exercises organized by topic')"),
+  Options.optional,
+)
+
 export const conjureCommand = Command.make("conjure", {
   args: { name: nameArg },
-  options: { github: githubOption, path: pathOption, mode: modeOption, description: descriptionOption },
+  options: { github: githubOption, path: pathOption, mode: modeOption, description: descriptionOption, hint: hintOption },
 }).pipe(
   Command.withDescription("Conjure topic documentation from a codebase"),
   Command.withHandler(({ args, options }) =>
@@ -49,6 +54,7 @@ export const conjureCommand = Command.make("conjure", {
       const projectName = args.name
       const github = Option.getOrUndefined(options.github)
       const path = Option.getOrUndefined(options.path)
+      const hint = Option.getOrUndefined(options.hint)
 
       // Load or create project
       const exists = yield* home.projectExists(projectName)
@@ -65,6 +71,7 @@ export const conjureCommand = Command.make("conjure", {
           ...(github ? { github, sourceType: "github" as const } : {}),
           ...(path ? { path } : {}),
           ...(!github && path ? { sourceType: "path" as const } : {}),
+          ...(hint ? { hint } : {}),
         })
 
         const projectDir = home.projectDir(projectName)
@@ -75,13 +82,14 @@ export const conjureCommand = Command.make("conjure", {
         yield* Console.error(render.success(`Created project '${projectName}'`))
       }
 
-      // Update config if new source flags provided
-      if (github || path) {
+      // Update config if new source flags or hint provided
+      if (github || path || hint) {
         config = new ProjectConfig({
           ...config,
           ...(github ? { github, sourceType: "github" as const } : {}),
           ...(path ? { path } : {}),
           ...(!github && path ? { sourceType: "path" as const } : {}),
+          ...(hint ? { hint } : {}),
         })
         yield* configService.write(projectName, config)
       }
@@ -94,6 +102,8 @@ export const conjureCommand = Command.make("conjure", {
         yield* Console.error(render.error("No source specified. Use --github or --path, or set them in grimoire.json."))
         return
       }
+
+      const resolvedHint = hint ?? config.hint
 
       const source = yield* resolveSource({
         github: resolvedGithub,
@@ -113,7 +123,7 @@ export const conjureCommand = Command.make("conjure", {
           const promptPath = `${projectDir}/analysis-prompt.md`
 
           yield* Console.error(render.info("Reading codebase..."))
-          const prompt = yield* generator.generate(source.codebasePath, promptPath, projectName, topicsDir)
+          const prompt = yield* generator.generate(source.codebasePath, promptPath, projectName, topicsDir, resolvedHint)
 
           yield* Console.error("")
           yield* Console.error(render.success(`Saved to ~/.grimoire/projects/${projectName}/analysis-prompt.md`))
@@ -138,7 +148,7 @@ export const conjureCommand = Command.make("conjure", {
             () => import("../ai/pipeline.js"),
           )
 
-          const { topics } = yield* runFullPipeline(source.codebasePath).pipe(
+          const { topics } = yield* runFullPipeline(source.codebasePath, resolvedHint).pipe(
             Effect.provide(provider.layer),
           )
 

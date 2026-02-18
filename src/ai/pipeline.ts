@@ -4,7 +4,7 @@ import { CodebaseOverview, TopicProposalSet, GeneratedTopic } from "../schemas/a
 import { CodebaseReader } from "../services/codebase-reader.js"
 import * as prompts from "./prompts.js"
 
-export const discover = (codebasePath: string) =>
+export const discover = (codebasePath: string, hint?: string) =>
   Effect.gen(function* () {
     const reader = yield* CodebaseReader
     const { formatted: fileTree } = yield* reader.getFileTree(codebasePath, 4)
@@ -23,18 +23,18 @@ export const discover = (codebasePath: string) =>
     )
 
     const response = yield* LanguageModel.generateObject({
-      prompt: prompts.discoveryPrompt(fileTree, keyFileContents.join("\n\n")),
+      prompt: prompts.discoveryPrompt(fileTree, keyFileContents.join("\n\n"), hint),
       schema: CodebaseOverview,
     })
 
     return response.value
   })
 
-export const planTopics = (overview: CodebaseOverview) =>
+export const planTopics = (overview: CodebaseOverview, hint?: string) =>
   Effect.gen(function* () {
     const overviewText = JSON.stringify(overview, null, 2)
     const response = yield* LanguageModel.generateObject({
-      prompt: prompts.topicPlanningPrompt(overviewText),
+      prompt: prompts.topicPlanningPrompt(overviewText, hint),
       schema: TopicProposalSet,
     })
     return response.value.proposals
@@ -65,10 +65,10 @@ export const generateTopic = (
     return response.value
   })
 
-export const runFullPipeline = (codebasePath: string) =>
+export const runFullPipeline = (codebasePath: string, hint?: string) =>
   Effect.gen(function* () {
-    const overview = yield* discover(codebasePath)
-    const proposals = yield* planTopics(overview)
+    const overview = yield* discover(codebasePath, hint)
+    const proposals = yield* planTopics(overview, hint)
 
     const topics = yield* Effect.all(
       proposals.map((proposal) => generateTopic(codebasePath, proposal)),

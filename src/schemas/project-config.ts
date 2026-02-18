@@ -8,6 +8,7 @@ export class ProjectConfig extends Schema.Class<ProjectConfig>("ProjectConfig")(
   path: Schema.optional(Schema.String),
   sourceType: Schema.optional(Schema.Literal("github", "path")),
   topicsDir: Schema.optionalWith(Schema.String, { default: () => "topics" }),
+  hint: Schema.optional(Schema.String),
 }) {}
 
 export const encodeProjectConfig = Schema.encode(ProjectConfig)

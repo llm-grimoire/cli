@@ -10,9 +10,9 @@ Key principles:
 
 IMPORTANT: Always respond with valid JSON matching the requested schema. No markdown, no commentary — only JSON.`
 
-export const discoveryPrompt = (fileTree: string, keyFileContents: string): string =>
+export const discoveryPrompt = (fileTree: string, keyFileContents: string, hint?: string): string =>
   `Analyze this codebase and produce a structured overview.
-
+${hint ? `\n## Context Hint\n${hint}\n` : ""}
 ## File Tree
 \`\`\`
 ${fileTree}
@@ -33,9 +33,9 @@ Respond with a JSON object matching this exact shape:
   "entryPoints": ["string"]
 }`
 
-export const topicPlanningPrompt = (overview: string): string =>
+export const topicPlanningPrompt = (overview: string, hint?: string): string =>
   `Based on this codebase overview, propose 8-15 documentation topics.
-
+${hint ? `\n## Context Hint\n${hint}\n` : ""}
 ## Codebase Overview
 ${overview}
 
