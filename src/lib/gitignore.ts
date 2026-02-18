@@ -17,23 +17,27 @@ const parsePatterns = (content: string): ReadonlyArray<{ pattern: string; negate
     })
 
 const patternToRegex = (pattern: string): RegExp => {
-  let regex = pattern
+  // Strip leading slash before escaping — it just means "anchored to root"
+  const anchored = pattern.startsWith("/")
+  const cleaned = anchored ? pattern.slice(1) : pattern
+
+  let regex = cleaned
     .replace(/[.+^${}()|[\]\\]/g, "\\$&")
     .replace(/\*\*/g, "{{GLOBSTAR}}")
     .replace(/\*/g, "[^/]*")
     .replace(/\?/g, "[^/]")
     .replace(/\{\{GLOBSTAR\}\}/g, ".*")
 
-  if (pattern.endsWith("/")) {
+  if (cleaned.endsWith("/")) {
     regex = regex.slice(0, -1) + "(/|$)"
   } else {
     regex = "(" + regex + "$|" + regex + "/)"
   }
 
-  if (!pattern.startsWith("/") && !pattern.includes("/")) {
+  if (anchored) {
+    regex = "^" + regex
+  } else if (!cleaned.includes("/")) {
     regex = "(^|.*/)" + regex
-  } else if (pattern.startsWith("/")) {
-    regex = "^" + regex.slice(2)
   }
 
   return new RegExp(regex)
