@@ -22,7 +22,7 @@ Pull pre-built documentation from the public registry — no AI tokens needed:
 
 ```bash
 grimoire add tim-smart/effect-atom
-grimoire show effect-atom overview
+grimoire show tim-smart/effect-atom overview
 ```
 
 ### Flow 2: Agent Mode (default)
@@ -30,25 +30,20 @@ grimoire show effect-atom overview
 Grimoire reads a codebase and emits a detailed prompt to stdout. Pipe it straight to your agent:
 
 ```bash
+# GitHub repo — name defaults to owner/repo
+grimoire conjure --github tim-smart/effect-atom | claude
+
+# Monorepo sub-package — name is required
+grimoire conjure effect-sql --github effect-ts/effect --path packages/sql | claude
+
+# Local path — name is required
 grimoire conjure my-lib --path ./src | claude
 ```
 
-Works with GitHub repos too:
+Use `--hint` to guide the AI with additional context:
 
 ```bash
-grimoire conjure effect-atom --github tim-smart/effect-atom | claude
-```
-
-For monorepo sub-packages, combine `--github` with `--path`:
-
-```bash
-grimoire conjure effect-sql --github effect-ts/effect --path packages/sql | claude
-```
-
-Use `--hint` to guide the AI with additional context about the codebase:
-
-```bash
-grimoire conjure my-lib --path ./src --hint "This repo has exercises organized by topic"
+grimoire conjure --github owner/repo --hint "This repo has exercises organized by topic"
 ```
 
 The prompt includes the codebase structure, key source files, and instructions for writing each topic. The agent writes directly to `~/.grimoire/projects/<name>/topics/`. Status messages go to stderr so piping works cleanly.
@@ -70,9 +65,9 @@ export OPENROUTER_API_KEY=sk-...   # uses anthropic/claude-opus-4.5
 Then run:
 
 ```bash
-grimoire conjure my-lib --path ./src --mode api
-grimoire conjure effect-atom --github tim-smart/effect-atom --mode api
+grimoire conjure --github tim-smart/effect-atom --mode api
 grimoire conjure effect-sql --github effect-ts/effect --path packages/sql --mode api
+grimoire conjure my-lib --path ./src --mode api
 ```
 
 Best for: quick results without manual steps.
@@ -80,10 +75,10 @@ Best for: quick results without manual steps.
 ## Reading the Docs
 
 ```bash
-grimoire list                           # all projects
-grimoire list my-lib                    # topics in a project
-grimoire show my-lib overview           # read a topic
-grimoire incant my-lib                  # markdown snippet for agent instructions
+grimoire list                                # all projects
+grimoire list tim-smart/effect-atom          # topics in a project
+grimoire show tim-smart/effect-atom overview # read a topic
+grimoire incant tim-smart/effect-atom        # markdown snippet for agent instructions
 ```
 
 `grimoire incant` outputs a block you can paste into CLAUDE.md or a system prompt so your agent knows what topics are available and how to query them.
@@ -92,13 +87,20 @@ grimoire incant my-lib                  # markdown snippet for agent instruction
 
 | Command | Purpose |
 |---------|---------|
-| `grimoire add <name>` | Pull pre-built grimoire from registry |
-| `grimoire conjure <name> [--github\|--path] [--mode] [--hint]` | Generate locally (creates project if needed) |
+| `grimoire add <owner/repo>` | Pull pre-built grimoire from registry |
+| `grimoire conjure [name] [--github] [--path] [--mode] [--hint]` | Generate docs from a codebase |
 | `grimoire push <name>` | Contribute to the registry |
 | `grimoire list [project]` | List projects or topics |
 | `grimoire show <project> <topic>` | Read a topic |
 | `grimoire incant <project>` | Output agent instructions |
 | `grimoire remove <project>` | Delete a project |
+
+## Naming
+
+- **Registry projects** use `owner/repo` (e.g. `tim-smart/effect-atom`) — same as GitHub
+- **`conjure --github`** defaults to `owner/repo` as the local name
+- **`conjure --github --path`** (monorepo) requires an explicit name
+- **`conjure --path`** (local) requires an explicit name
 
 ## How It Works
 
@@ -106,7 +108,7 @@ grimoire incant my-lib                  # markdown snippet for agent instruction
 2. Analysis reads the codebase (respecting `.gitignore`) and either generates an agent prompt or calls an AI provider
 3. Topics are markdown files with YAML frontmatter — no build step, read directly at runtime
 4. `list`, `show`, and `incant` parse frontmatter and render to the terminal
-5. `add` pulls pre-built grimoires from the public registry
+5. `add` pulls pre-built grimoires from the public registry at [llm-grimoire.dev](https://llm-grimoire.dev)
 6. `push` helps you contribute your grimoire back to the registry
 
 ## Storage
@@ -116,11 +118,16 @@ Everything lives in `~/.grimoire` (override with `GRIMOIRE_HOME`):
 ```
 ~/.grimoire/
   projects/
+    tim-smart/
+      effect-atom/
+        grimoire.json
+        topics/
+          00-overview.md
+          01-architecture.md
+          ...
     my-lib/
       grimoire.json
       topics/
-        00-overview.md
-        01-architecture.md
         ...
 ```
 

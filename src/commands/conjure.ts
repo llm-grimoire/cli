@@ -11,11 +11,12 @@ import { resolveProvider } from "../ai/provider.js"
 import * as render from "../lib/render.js"
 
 const nameArg = Args.text({ name: "name" }).pipe(
-  Args.withDescription("Project name (e.g. 'effect-atom')"),
+  Args.withDescription("Project name — required for local paths and monorepo sub-packages, optional with --github"),
+  Args.optional,
 )
 
 const githubOption = Options.text("github").pipe(
-  Options.withDescription("GitHub owner/repo (e.g. 'tim-smart/effect-atom') or full URL"),
+  Options.withDescription("GitHub owner/repo (e.g. 'tim-smart/effect-atom')"),
   Options.optional,
 )
 
@@ -51,10 +52,26 @@ export const conjureCommand = Command.make("conjure", {
       const home = yield* GrimoireHome
       const configService = yield* ProjectConfigService
 
-      const projectName = args.name
+      const nameOpt = Option.getOrUndefined(args.name)
       const github = Option.getOrUndefined(options.github)
       const path = Option.getOrUndefined(options.path)
       const hint = Option.getOrUndefined(options.hint)
+
+      // Resolve project name
+      let projectName: string
+      if (nameOpt) {
+        projectName = nameOpt
+      } else if (github && !path) {
+        // --github without --path: use owner/repo as name
+        projectName = github
+      } else if (github && path) {
+        yield* Console.error(render.error("Name is required when using --github with --path (monorepo sub-package)."))
+        yield* Console.error(render.dim(`  Example: grimoire conjure effect-sql --github ${github} --path ${path}`))
+        return
+      } else {
+        yield* Console.error(render.error("Name is required. Provide a project name or use --github."))
+        return
+      }
 
       // Load or create project
       const exists = yield* home.projectExists(projectName)

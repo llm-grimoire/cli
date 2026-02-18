@@ -1,6 +1,6 @@
 {
   "name": "@llm-grimoire/cli",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "Instant codebase documentation for AI agents and humans",
   "type": "module",
   "license": "MIT",
