@@ -38,25 +38,27 @@ export class GrimoireHome extends Effect.Service<GrimoireHome>()(
             if (entry.startsWith(".")) continue
             const entryPath = `${projectsRoot}/${entry}`
             const stat = yield* fs.stat(entryPath)
-            if (stat.type === "Directory") {
-              // Check if this is a direct project (has grimoire.json)
+            if (stat.type !== "Directory") continue
+
+            if (entry.startsWith("@")) {
+              // Scoped: walk one level deeper (@scope/name)
+              const subEntries = yield* fs.readDirectory(entryPath)
+              for (const sub of subEntries) {
+                if (sub.startsWith(".")) continue
+                const subPath = `${entryPath}/${sub}`
+                const subStat = yield* fs.stat(subPath)
+                if (subStat.type === "Directory") {
+                  const hasConfig = yield* fs.exists(`${subPath}/grimoire.json`)
+                  if (hasConfig) {
+                    dirs.push(`${entry}/${sub}`)
+                  }
+                }
+              }
+            } else {
+              // Plain name
               const hasConfig = yield* fs.exists(`${entryPath}/grimoire.json`)
               if (hasConfig) {
                 dirs.push(entry)
-              } else {
-                // Check for owner/repo nesting
-                const subEntries = yield* fs.readDirectory(entryPath)
-                for (const sub of subEntries) {
-                  if (sub.startsWith(".")) continue
-                  const subPath = `${entryPath}/${sub}`
-                  const subStat = yield* fs.stat(subPath)
-                  if (subStat.type === "Directory") {
-                    const subHasConfig = yield* fs.exists(`${subPath}/grimoire.json`)
-                    if (subHasConfig) {
-                      dirs.push(`${entry}/${sub}`)
-                    }
-                  }
-                }
               }
             }
           }

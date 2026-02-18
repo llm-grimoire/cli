@@ -62,8 +62,8 @@ export const conjureCommand = Command.make("conjure", {
       if (nameOpt) {
         projectName = nameOpt
       } else if (github && !path) {
-        // --github without --path: use owner/repo as name
-        projectName = github
+        // --github without --path: default to lowercased repo name
+        projectName = github.split("/").pop()!.toLowerCase()
       } else if (github && path) {
         yield* Console.error(render.error("Name is required when using --github with --path (monorepo sub-package)."))
         yield* Console.error(render.dim(`  Example: grimoire conjure effect-sql --github ${github} --path ${path}`))

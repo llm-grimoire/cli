@@ -6,11 +6,11 @@ AI-assisted codebase navigation. Analyzes any codebase (via AI or agent prompts)
 
 ## Project Status
 
-**Core redesign complete.** All commands work end-to-end with centralized `~/.grimoire` storage. Registry support (`add`/`push`) is in v1 form.
+**Core redesign complete.** All commands work end-to-end with centralized `~/.grimoire` storage. Registry support (`add`) is in v1 form.
 
 ### Commands
 - `grimoire search [query]` — browse and install from the registry (interactive prompt, or static with query)
-- `grimoire add <owner/repo>` — pull pre-built grimoire from registry
+- `grimoire add <name>` — pull pre-built grimoire from registry (e.g. `effect-atom`, `@effect/sql-pg`)
 - `grimoire conjure [name] [--github owner/repo] [--path dir] [--mode agent|api] [--hint text]` — generate locally (name optional with `--github`)
 - `grimoire list [project]` — list all projects or topics for a project
 - `grimoire show <project> <topic>` — show a topic
@@ -28,42 +28,47 @@ AI-assisted codebase navigation. Analyzes any codebase (via AI or agent prompts)
 ```
 ~/.grimoire/
   projects/
-    tim-smart/
-      effect-atom/
-        grimoire.json        # Project config (name, description, github, path, sourceType)
+    effect-atom/
+      grimoire.json        # Project config (name, description, github, path, sourceType)
+      topics/
+        00-overview.md
+        01-architecture.md
+        ...
+    @effect/
+      sql-pg/
+        grimoire.json
         topics/
-          00-overview.md
-          01-architecture.md
-          ...
     my-lib/
       grimoire.json
       topics/
 ```
 
-Registry projects are stored as `owner/repo/` (nested two levels). Local projects are stored flat.
+Projects use npm-style naming: plain names (`effect-atom`) are stored flat, scoped names (`@scope/name`) are stored as `@scope/name/`. The grimoire `name` from grimoire.json is the canonical identifier everywhere.
 
 No manifest — `list` and `show` read topic `.md` files directly, parsing frontmatter at runtime. Respects `GRIMOIRE_HOME` env var to override `~/.grimoire`.
 
 ## Registry
 
-Git repo at `github.com/llm-grimoire/registry`, namespaced by GitHub owner/repo. Served via static API at [llm-grimoire.dev](https://llm-grimoire.dev).
+Git repo at `github.com/llm-grimoire/registry`, with packages named by grimoire name. Served via static API at [llm-grimoire.dev](https://llm-grimoire.dev).
 
 ```
 registry/
   packages/
-    tim-smart/
-      effect-atom/
+    effect-atom/
+      grimoire.json
+      topics/...
+    @effect/
+      sql-pg/
         grimoire.json
         topics/...
-    effect-ts/
-      effect/
-        sql/              # monorepo sub-package
-          grimoire.json
-          topics/...
+    @kontor/
+      kontor-sdk/
+        grimoire.json
+        topics/...
 ```
 
 - `grimoire search` — interactive browser for the registry
-- `grimoire add owner/repo` — fetches from the registry API at llm-grimoire.dev
+- `grimoire add <name>` — fetches from the registry API at llm-grimoire.dev
 
 ## Architecture
 
@@ -123,9 +128,9 @@ npx tsx src/cli.ts search
 npx tsx src/cli.ts search effect
 
 # Install from registry
-npx tsx src/cli.ts add tim-smart/effect-atom
+npx tsx src/cli.ts add effect-atom
 
-# Generate with GitHub source (name defaults to owner/repo)
+# Generate with GitHub source (name defaults to repo name)
 npx tsx src/cli.ts conjure --github tim-smart/effect-atom
 
 # Generate monorepo sub-package (name required)
@@ -136,9 +141,9 @@ npx tsx src/cli.ts conjure my-lib --path ./src
 
 # List / show / remove
 npx tsx src/cli.ts list
-npx tsx src/cli.ts list tim-smart/effect-atom
-npx tsx src/cli.ts show tim-smart/effect-atom overview
-npx tsx src/cli.ts remove tim-smart/effect-atom
+npx tsx src/cli.ts list effect-atom
+npx tsx src/cli.ts show effect-atom overview
+npx tsx src/cli.ts remove effect-atom
 ```
 
 ## File Layout

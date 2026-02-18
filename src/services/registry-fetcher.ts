@@ -18,31 +18,25 @@ const fetchJson = (url: string): Effect.Effect<unknown, Error> =>
 
 /**
  * Fetch a grimoire from the registry and install it locally.
- * Returns the local project name, or fails if not found.
+ * Input: grimoire name (e.g. "effect-atom", "@effect/sql-pg")
  */
-export const fetchFromRegistry = (ownerRepo: string) =>
+export const fetchFromRegistry = (name: string) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem
     const home = yield* GrimoireHome
 
-    const [owner, repo] = ownerRepo.split("/")
-    if (!owner || !repo) {
-      return yield* Effect.fail(new Error(`Invalid registry name '${ownerRepo}'.`))
-    }
-
-    const localName = `${owner}/${repo}`
-    const alreadyExists = yield* home.projectExists(localName)
+    const alreadyExists = yield* home.projectExists(name)
     if (alreadyExists) {
-      return localName
+      return name
     }
 
-    yield* Console.error(render.info(`Fetching '${ownerRepo}' from registry...`))
+    yield* Console.error(render.info(`Fetching '${name}' from registry...`))
 
     const configJson = yield* fetchJson(
-      `${REGISTRY_BASE}/api/v1/grimoires/${owner}/${repo}/index.json`,
+      `${REGISTRY_BASE}/api/v1/grimoires/${name}/index.json`,
     ).pipe(
       Effect.catchAll(() =>
-        Effect.fail(new Error(`'${ownerRepo}' not found in the registry.`)),
+        Effect.fail(new Error(`'${name}' not found in the registry.`)),
       ),
     )
 
@@ -52,7 +46,7 @@ export const fetchFromRegistry = (ownerRepo: string) =>
 
     yield* home.ensureHome()
 
-    const projectDir = home.projectDir(localName)
+    const projectDir = home.projectDir(name)
     const topicsDir = `${projectDir}/topics`
     yield* fs.makeDirectory(topicsDir, { recursive: true })
 
@@ -62,7 +56,7 @@ export const fetchFromRegistry = (ownerRepo: string) =>
     )
 
     const topicsResponse = yield* fetchJson(
-      `${REGISTRY_BASE}/api/v1/grimoires/${owner}/${repo}/topics.json`,
+      `${REGISTRY_BASE}/api/v1/grimoires/${name}/topics.json`,
     ).pipe(
       Effect.catchAll(() => Effect.succeed({ topics: [] as Array<{ slug: string; filename: string }> })),
     ) as Effect.Effect<{ topics: Array<{ slug: string; filename: string }> }>
@@ -72,7 +66,7 @@ export const fetchFromRegistry = (ownerRepo: string) =>
 
     for (const topic of topicList) {
       const topicData = yield* fetchJson(
-        `${REGISTRY_BASE}/api/v1/grimoires/${owner}/${repo}/topics/${topic.slug}.json`,
+        `${REGISTRY_BASE}/api/v1/grimoires/${name}/topics/${topic.slug}.json`,
       ).pipe(Effect.catchAll(() => Effect.succeed(null)))
 
       if (topicData) {
@@ -87,11 +81,8 @@ export const fetchFromRegistry = (ownerRepo: string) =>
       }
     }
 
-    yield* Console.error(render.success(`Added '${localName}' with ${downloaded} topics`))
+    yield* Console.error(render.success(`Added '${name}' with ${downloaded} topics`))
     yield* Console.error("")
 
-    return localName
+    return name
   })
-
-/** Check if a string looks like an owner/repo registry reference */
-export const isRegistryRef = (name: string): boolean => name.includes("/")

@@ -21,8 +21,8 @@ npm install -g @llm-grimoire/cli
 Pull pre-built documentation from the public registry — no AI tokens needed:
 
 ```bash
-grimoire add tim-smart/effect-atom
-grimoire show tim-smart/effect-atom overview
+grimoire add effect-atom
+grimoire show effect-atom overview
 ```
 
 ### Flow 2: Agent Mode (default)
@@ -30,7 +30,7 @@ grimoire show tim-smart/effect-atom overview
 Grimoire reads a codebase and emits a detailed prompt to stdout. Pipe it straight to your agent:
 
 ```bash
-# GitHub repo — name defaults to owner/repo
+# GitHub repo — name defaults to repo name
 grimoire conjure --github tim-smart/effect-atom | claude
 
 # Monorepo sub-package — name is required
@@ -75,10 +75,10 @@ Best for: quick results without manual steps.
 ## Reading the Docs
 
 ```bash
-grimoire list                                # all projects
-grimoire list tim-smart/effect-atom          # topics in a project
-grimoire show tim-smart/effect-atom overview # read a topic
-grimoire incant tim-smart/effect-atom        # markdown snippet for agent instructions
+grimoire list                          # all projects
+grimoire list effect-atom              # topics in a project
+grimoire show effect-atom overview     # read a topic
+grimoire incant effect-atom            # markdown snippet for agent instructions
 ```
 
 `grimoire incant` outputs a block you can paste into CLAUDE.md or a system prompt so your agent knows what topics are available and how to query them.
@@ -88,7 +88,7 @@ grimoire incant tim-smart/effect-atom        # markdown snippet for agent instru
 | Command | Purpose |
 |---------|---------|
 | `grimoire search [query]` | Browse and install from the registry (interactive) |
-| `grimoire add <owner/repo>` | Pull pre-built grimoire from registry |
+| `grimoire add <name>` | Pull pre-built grimoire from registry |
 | `grimoire conjure [name] [--github] [--path] [--mode] [--hint]` | Generate docs from a codebase |
 | `grimoire list [project]` | List projects or topics |
 | `grimoire show <project> <topic>` | Read a topic |
@@ -97,10 +97,11 @@ grimoire incant tim-smart/effect-atom        # markdown snippet for agent instru
 
 ## Naming
 
-- **Registry projects** use `owner/repo` (e.g. `tim-smart/effect-atom`) — same as GitHub
-- **`conjure --github`** defaults to `owner/repo` as the local name
+- **Names** follow npm convention: plain (`effect-atom`) or scoped (`@effect/sql-pg`)
+- **`conjure --github`** defaults to the lowercased repo name (e.g. `--github tim-smart/effect-atom` → `effect-atom`)
 - **`conjure --github --path`** (monorepo) requires an explicit name
 - **`conjure --path`** (local) requires an explicit name
+- **`add`** takes the grimoire name as published in the registry
 
 ## How It Works
 
@@ -117,13 +118,16 @@ Everything lives in `~/.grimoire` (override with `GRIMOIRE_HOME`):
 ```
 ~/.grimoire/
   projects/
-    tim-smart/
-      effect-atom/
+    effect-atom/
+      grimoire.json
+      topics/
+        00-overview.md
+        01-architecture.md
+        ...
+    @effect/
+      sql-pg/
         grimoire.json
         topics/
-          00-overview.md
-          01-architecture.md
-          ...
     my-lib/
       grimoire.json
       topics/

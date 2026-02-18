@@ -15,9 +15,8 @@ const queryArg = Args.text({ name: "query" }).pipe(
 
 interface RegistryGrimoire {
   name: string
-  owner: string
-  repo: string
   description: string
+  github?: string
   topicCount: number
 }
 
@@ -48,8 +47,6 @@ function filterGrimoires(
   return grimoires.filter(
     (g) =>
       g.name.toLowerCase().includes(q) ||
-      g.owner.toLowerCase().includes(q) ||
-      g.repo.toLowerCase().includes(q) ||
       g.description.toLowerCase().includes(q),
   )
 }
@@ -86,12 +83,11 @@ function renderFrame(state: SearchState): string {
 
     for (let i = start; i < end; i++) {
       const g = state.filtered[i]!
-      const ref = `${g.owner}/${g.repo}`
       const isSelected = i === state.cursor
-      const installed = state.installed.has(ref)
+      const installed = state.installed.has(g.name)
 
       const pointer = isSelected ? pc.cyan("❯") : " "
-      const name = isSelected ? pc.cyan(ref) : ref
+      const name = isSelected ? pc.cyan(g.name) : g.name
       const desc = pc.dim(truncate(g.description, 50))
       const topics = pc.dim(`${g.topicCount} topics`)
       const badge = installed ? pc.green(" ✓") : ""
@@ -115,9 +111,8 @@ function handleRender(
     NextFrame: ({ state }: { state: SearchState }) => Effect.succeed(renderFrame(state)),
     Submit: ({ value }: { value: RegistryGrimoire | null }) => {
       if (value) {
-        const ref = `${value.owner}/${value.repo}`
         return Effect.succeed(
-          `${pc.green("✓")} ${pc.bold("Search grimoires")} ${pc.dim("›")} ${ref}\n`,
+          `${pc.green("✓")} ${pc.bold("Search grimoires")} ${pc.dim("›")} ${value.name}\n`,
         )
       }
       return Effect.succeed("")
@@ -214,8 +209,6 @@ function staticSearch(
     const filtered = grimoires.filter(
       (g) =>
         g.name.toLowerCase().includes(q) ||
-        g.owner.toLowerCase().includes(q) ||
-        g.repo.toLowerCase().includes(q) ||
         g.description.toLowerCase().includes(q),
     )
 
@@ -231,15 +224,14 @@ function staticSearch(
     yield* Console.log("")
 
     for (const g of filtered) {
-      const ref = `${g.owner}/${g.repo}`
-      const installed = localSet.has(ref)
+      const installed = localSet.has(g.name)
       const status = installed ? " ✓ installed" : ""
-      yield* Console.log(render.label(ref, g.description))
+      yield* Console.log(render.label(g.name, g.description))
       yield* Console.log(render.dim(`  ${g.topicCount} topics${status}`))
     }
 
     yield* Console.log("")
-    yield* Console.log(render.dim("Install with: grimoire add <owner/repo>"))
+    yield* Console.log(render.dim("Install with: grimoire add <name>"))
     yield* Console.log("")
   })
 }
@@ -286,11 +278,10 @@ export const searchCommand = Command.make("search", {
         )
 
         if (selected) {
-          const ref = `${selected.owner}/${selected.repo}`
-          if (localSet.has(ref)) {
-            yield* Console.log(render.dim(`'${ref}' is already installed.`))
+          if (localSet.has(selected.name)) {
+            yield* Console.log(render.dim(`'${selected.name}' is already installed.`))
           } else {
-            yield* fetchFromRegistry(ref)
+            yield* fetchFromRegistry(selected.name)
           }
         }
       }

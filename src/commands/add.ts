@@ -4,7 +4,7 @@ import { fetchFromRegistry } from "../services/registry-fetcher.js"
 import * as render from "../lib/render.js"
 
 const nameArg = Args.text({ name: "name" }).pipe(
-  Args.withDescription("Registry name — 'owner/repo' format (e.g. 'tim-smart/effect-atom')"),
+  Args.withDescription("Grimoire name (e.g. 'effect-atom', '@effect/sql-pg')"),
 )
 
 export const addCommand = Command.make("add", {
@@ -15,16 +15,6 @@ export const addCommand = Command.make("add", {
     Effect.gen(function* () {
       const name = args.name
 
-      const [owner, repo] = name.split("/")
-      if (!owner || !repo) {
-        yield* Effect.fail(new Error(
-          `Invalid name '${name}'. Use 'owner/repo' format (e.g. 'tim-smart/effect-atom').`,
-        ))
-        return
-      }
-
-      // Check if already exists by looking for a project matching the repo name
-      // (fetchFromRegistry uses config.name from the registry as the local name)
       yield* Console.error("")
 
       const localName = yield* fetchFromRegistry(name)
