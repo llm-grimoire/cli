@@ -30,8 +30,7 @@ export const fetchFromRegistry = (ownerRepo: string) =>
       return yield* Effect.fail(new Error(`Invalid registry name '${ownerRepo}'.`))
     }
 
-    // Check if already exists locally under repo name
-    const localName = repo.toLowerCase()
+    const localName = `${owner}/${repo}`
     const alreadyExists = yield* home.projectExists(localName)
     if (alreadyExists) {
       return localName

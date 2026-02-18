@@ -35,9 +35,29 @@ export class GrimoireHome extends Effect.Service<GrimoireHome>()(
           const entries = yield* fs.readDirectory(projectsRoot)
           const dirs: string[] = []
           for (const entry of entries) {
-            const stat = yield* fs.stat(`${projectsRoot}/${entry}`)
+            if (entry.startsWith(".")) continue
+            const entryPath = `${projectsRoot}/${entry}`
+            const stat = yield* fs.stat(entryPath)
             if (stat.type === "Directory") {
-              dirs.push(entry)
+              // Check if this is a direct project (has grimoire.json)
+              const hasConfig = yield* fs.exists(`${entryPath}/grimoire.json`)
+              if (hasConfig) {
+                dirs.push(entry)
+              } else {
+                // Check for owner/repo nesting
+                const subEntries = yield* fs.readDirectory(entryPath)
+                for (const sub of subEntries) {
+                  if (sub.startsWith(".")) continue
+                  const subPath = `${entryPath}/${sub}`
+                  const subStat = yield* fs.stat(subPath)
+                  if (subStat.type === "Directory") {
+                    const subHasConfig = yield* fs.exists(`${subPath}/grimoire.json`)
+                    if (subHasConfig) {
+                      dirs.push(`${entry}/${sub}`)
+                    }
+                  }
+                }
+              }
             }
           }
           return dirs.sort()
